@@ -9,7 +9,7 @@ packaging choice below.
 |---|---|---|
 | Cost | free | paid |
 | Download & run | Gatekeeper blocks it until `xattr -dr com.apple.quarantine` | opens cleanly |
-| Homebrew cask | works, needs the `postflight` quarantine strip (already in `Casks/shade.rb`) | works, no strip needed |
+| Homebrew cask | works, needs the `postflight` quarantine strip (already in `packaging/shade.rb`) | works, no strip needed |
 | Notarization | n/a | `make notarize` |
 
 If this stays a personal / small-audience tool, ad-hoc + the cask's
@@ -25,13 +25,13 @@ make package
 # 3. create the GitHub release and attach the zip
 git tag v0.1.0 && git push --tags
 gh release create v0.1.0 dist/Shade-0.1.0-macos-arm64.zip
-# 4. update version + sha256 in Casks/shade.rb (sha256 is printed by make package)
+# 4. update version + sha256 in packaging/shade.rb (sha256 is printed by make package)
 ```
 
 ## Homebrew (recommended install UX)
 
 Casks live in a separate **tap** repo, not this one. Create
-`github.com/don-san-sec/homebrew-tap`, put `Casks/shade.rb` in its `Casks/`
+`github.com/don-san-sec/homebrew-tap`, put `packaging/shade.rb` in its `Casks/`
 dir, then users run:
 
 ```sh
