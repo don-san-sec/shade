@@ -34,7 +34,6 @@ static NSPanel *g_panel = nil;
 static NSRunningApplication *g_prev_app = nil;
 static QuakeView *g_view = nil;
 static bool g_visible = false;
-static id g_esc_monitor = nil;
 
 // "§" on British/ISO keyboards is either the physical section key
 // (kVK_ISO_Section = 0x0A, left of Z) or Option+6 (kVK_ANSI_6 = 0x07).
@@ -288,16 +287,6 @@ int quake_run(const QuakeHooks *hooks) {
     if (r1 != noErr || r2 != noErr) {
         qlog("hotkey registration failed: section=%d opt6=%d", (int)r1, (int)r2);
     }
-
-    // Esc hides while the panel is key.
-    g_esc_monitor = [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskKeyDown
-        handler:^NSEvent *(NSEvent *event) {
-            if (event.keyCode == 53 && g_hooks.toggle) {
-                g_hooks.toggle();
-                return nil;
-            }
-            return event;
-        }];
 
     [app run];
     return 0;
