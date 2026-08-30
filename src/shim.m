@@ -44,7 +44,7 @@ static bool g_visible = false;
 //
 // Plain § and Option+6 are deliberately NOT bound: they produce the §
 // character, which should stay typeable.
-enum { kShadeSectionKey = 0x0A, kShadeGraveKey = 0x32, kShadeQKey = 0x0C, kShadeDKey = 0x02 };
+enum { kShadeSectionKey = 0x0A, kShadeGraveKey = 0x32, kShadeQKey = 0x0C };
 
 #pragma mark - View
 
@@ -72,18 +72,11 @@ enum { kShadeSectionKey = 0x0A, kShadeGraveKey = 0x32, kShadeQKey = 0x0C, kShade
             if (g_hooks.toggle) g_hooks.toggle();
             return YES;
         }
-        // Cmd+Q: send Ctrl+D (EOF) to the shell instead of quitting the app.
-        // Forwarded as a synthetic Ctrl+D key event so it is encoded exactly
-        // like the real keystroke. Only fires when shade is frontmost; other
-        // apps keep their normal Cmd+Q.
-        if (event.keyCode == kShadeQKey && g_hooks.key_down) {
-            ShadeKey k = {
-                .keycode = kShadeDKey,
-                .mods = (uint64_t)NSEventModifierFlagControl,
-                .action = 0, // press
-                .event = NULL,
-            };
-            g_hooks.key_down(k);
+        // Cmd+Q: hide the panel (dismiss the overlay), never quit the app and
+        // never kill the shell — the tmux session is meant to persist. To end
+        // the session deliberately, use Ctrl+D. Only fires when frontmost.
+        if (event.keyCode == kShadeQKey) {
+            if (g_hooks.toggle) g_hooks.toggle();
             return YES;
         }
     }
