@@ -498,7 +498,8 @@ fn main() {
         // setup breaks the spawn, so disable it.
         if let Some(dir) = home_config_dir() {
             let ov = dir.join("ghostty-override");
-            std::fs::write(&ov, "shell-integration = none\n").ok();
+            // 4px keeps the top-row status bar off the screen bezel.
+            std::fs::write(&ov, "shell-integration = none\nwindow-padding-y = 4\n").ok();
             let ov_c = CString::new(ov.to_str().unwrap()).unwrap();
             ghostty_config_load_file(cfg, ov_c.as_ptr());
         }

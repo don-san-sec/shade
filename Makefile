@@ -46,32 +46,27 @@ build: $(LIBFIXED)
 run: build
 	$(BIN)
 
-# Install: copy the app and open it once. The app registers its bundled
-# agent with SMAppService (System Settings → Login Items → Quake) and BTM
-# starts it. Also cleans up the legacy raw LaunchAgent from older installs.
+# Install: copy the app, install a raw LaunchAgent, start it.
+# (SMAppService/BTM agents get launch-constraint-killed for ad-hoc signed
+# apps on macOS 27 beta; a plain LaunchAgent is reliable and still shows
+# under System Settings → Background App Activity.)
 install: build
 	-pkill -x Quake
-	# Unregister BEFORE replacing the bundle: BTM pins the agent to the
-	# ad-hoc cdhash, so swapping binaries under a live registration gets
-	# the job killed with a launch-constraint violation (EX_CONFIG).
+	# Clean up any BTM-registered agent from the SMAppService experiment.
 	-/Applications/Quake.app/Contents/MacOS/Quake --unregister-agent
 	-launchctl bootout gui/$(UID)/dev.quake.app
 	sleep 1
-	rm -f $(HOME)/Library/LaunchAgents/dev.quake.agent.plist
 	rm -rf /Applications/Quake.app
 	cp -R $(APP) /Applications/Quake.app
-	# Open once to self-register the login item, then let the agent own it.
-	open /Applications/Quake.app
-	sleep 2
-	-pkill -x Quake
-	sleep 1
-	launchctl kickstart gui/$(UID)/dev.quake.app
+	sed 's#@BIN@#/Applications/Quake.app/Contents/MacOS/Quake#' \
+		assets/dev.quake.agent.plist > $(AGENT)
+	launchctl bootstrap gui/$(UID) $(AGENT)
 
 uninstall:
-	-/Applications/Quake.app/Contents/MacOS/Quake --unregister-agent
-	-pkill -x Quake
 	-launchctl bootout gui/$(UID)/dev.quake.app
-	rm -f $(HOME)/Library/LaunchAgents/dev.quake.agent.plist
+	-pkill -x Quake
+	-/Applications/Quake.app/Contents/MacOS/Quake --unregister-agent
+	rm -f $(AGENT)
 	rm -rf /Applications/Quake.app
 
 clean:

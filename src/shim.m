@@ -245,9 +245,6 @@ int quake_run(const QuakeHooks *hooks) {
     g_hooks = *hooks;
 
     NSApplication *app = [NSApplication sharedApplication];
-    if ([[[NSBundle mainBundle] bundlePath] isEqualToString:@"/Applications/Quake.app"]) {
-        quake_register_agent();
-    }
     [app setActivationPolicy:NSApplicationActivationPolicyAccessory];
     [app setDelegate:[[QuakeDelegate alloc] init]];
 

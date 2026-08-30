@@ -4,8 +4,10 @@
 <dict>
 	<key>Label</key>
 	<string>dev.quake.app</string>
-	<key>BundleProgram</key>
-	<string>Contents/MacOS/Quake</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>@BIN@</string>
+	</array>
 	<key>RunAtLoad</key>
 	<true/>
 	<key>KeepAlive</key>
