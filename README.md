@@ -1,6 +1,6 @@
 # shade
 
-**A one-key dropdown terminal for macOS.** Press `§` and a fullscreen,
+**A one-key dropdown terminal for macOS.** Press `Cmd+§` and a fullscreen,
 GPU-rendered terminal drops over whatever you're doing. Press it again and
 it's gone.
 
@@ -12,9 +12,9 @@ no window chrome — just your shell, instantly.
 
 ## Why shade?
 
-- **One key, from anywhere** — `§` (the key left of `Z`), `Option+6`, or
-  `Cmd+§` / ``Cmd+` `` (US) summons it on the screen your mouse is on. It
-  floats over fullscreen apps and covers the menu bar.
+- **One key, from anywhere** — `Cmd+§` (British/ISO) or ``Cmd+` `` (US)
+  summons it on the screen your mouse is on. It floats over fullscreen apps
+  and covers the menu bar.
 - **Your shell, your sessions** — it runs your login shell, so your existing
   config attaches tmux (e.g. fish: `exec tmux new-session -A -s main`) and
   sessions persist between toggles. Detaching (`prefix d`) hides the panel.
@@ -59,25 +59,18 @@ make install  # build + install to /Applications + start at login
 
 ## Use it
 
-Show / hide with any of:
+Show / hide with:
 
 | Key | Layout |
 |---|---|
-| `§` | any (the key left of `Z`; no modifier) |
-| `Option+6` | British (types `§`) |
-| `Cmd+§` | British / ISO |
-| ``Cmd+` `` | US / ANSI |
+| `Cmd+§` | British / ISO (the key left of `Z`) |
+| ``Cmd+` `` | US / ANSI (the key left of `1`) |
 
 Everything else is your normal shell and tmux.
 
-Notes:
-
-- The `Cmd` variant follows your physical layout — `Cmd+§` on ISO,
-  ``Cmd+` `` on ANSI. Only one is bound, so on a British board ``Cmd+` ``
-  stays free for macOS's window cycling.
-- Plain `§` is a toggle, so you can't type the `§` character while shade is
-  running. Use `Cmd+§` / ``Cmd+` `` if you need to type it, or drop the plain
-  binding (see `src/shim.m`).
+Only one binding is registered, chosen by your physical layout — so on a
+British board ``Cmd+` `` stays free for macOS's window cycling. Plain `§` is
+deliberately not a toggle, so the `§` character stays typeable.
 
 ### Optional config
 
