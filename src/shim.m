@@ -39,7 +39,12 @@ static bool g_visible = false;
 // "§" on British/ISO keyboards is either the physical section key
 // (kVK_ISO_Section = 0x0A, left of Z) or Option+6 (kVK_ANSI_6 = 0x07).
 // Register both. Carbon hotkeys need no Accessibility permission.
-enum { kShadeSectionKey = 0x0A, kShadeSixKey = 0x16 };
+//
+// Cmd-based toggle: Cmd+§ on ISO/British boards (kVK_ISO_Section), Cmd+`
+// on ANSI/US boards (kVK_ANSI_Grave = 0x32, the key left of 1). Only one is
+// registered, chosen by physical layout, because Cmd+` is macOS's
+// window-cycle shortcut and we must not steal it where § exists.
+enum { kShadeSectionKey = 0x0A, kShadeSixKey = 0x16, kShadeGraveKey = 0x32 };
 
 #pragma mark - View
 
@@ -240,7 +245,7 @@ static OSStatus hotkeyHandler(EventHandlerCallRef call, EventRef event, void *us
         // Call the toggle synchronously: the hotkey handler runs on the
         // main thread inside live event processing, which is what lets
         // macOS grant our accessory app focus (user-initiated activation).
-        if ((keyID.id == 1 || keyID.id == 2) && g_hooks.toggle) {
+        if ((keyID.id >= 1 && keyID.id <= 3) && g_hooks.toggle) {
             g_hooks.toggle();
         }
     }
@@ -312,14 +317,20 @@ int shade_run(const ShadeHooks *hooks) {
     InstallEventHandler(GetEventDispatcherTarget(), hotkeyHandler, 1, &spec, NULL, NULL);
     EventHotKeyID keyID1 = { .signature = 'SHAD', .id = 1 };
     EventHotKeyID keyID2 = { .signature = 'SHAD', .id = 2 };
-    static EventHotKeyRef ref1 = NULL, ref2 = NULL;
+    EventHotKeyID keyID3 = { .signature = 'SHAD', .id = 3 };
+    static EventHotKeyRef ref1 = NULL, ref2 = NULL, ref3 = NULL;
     // Option+6 types "§" on the British layout.
     OSStatus r1 = RegisterEventHotKey(kShadeSectionKey, 0, keyID1,
                         GetEventDispatcherTarget(), 0, &ref1);
     OSStatus r2 = RegisterEventHotKey(kShadeSixKey, optionKey, keyID2,
                         GetEventDispatcherTarget(), 0, &ref2);
-    if (r1 != noErr || r2 != noErr) {
-        qlog("hotkey registration failed: section=%d opt6=%d", (int)r1, (int)r2);
+    // Cmd+§ on ISO, Cmd+` on ANSI (see the note by the keycode enum).
+    const BOOL iso = KBGetLayoutType(LMGetKbdType()) == (OSType)kKeyboardISO;
+    OSStatus r3 = RegisterEventHotKey(iso ? kShadeSectionKey : kShadeGraveKey,
+                        cmdKey, keyID3, GetEventDispatcherTarget(), 0, &ref3);
+    if (r1 != noErr || r2 != noErr || r3 != noErr) {
+        qlog("hotkey registration failed: section=%d opt6=%d cmd=%d",
+             (int)r1, (int)r2, (int)r3);
     }
 
     [app run];

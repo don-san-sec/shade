@@ -12,9 +12,9 @@ no window chrome — just your shell, instantly.
 
 ## Why shade?
 
-- **One key, from anywhere** — `§` (the key left of `Z`) or `Option+6` summons
-  it on the screen your mouse is on. It floats over fullscreen apps and covers
-  the menu bar.
+- **One key, from anywhere** — `§` (the key left of `Z`), `Option+6`, or
+  `Cmd+§` / ``Cmd+` `` (US) summons it on the screen your mouse is on. It
+  floats over fullscreen apps and covers the menu bar.
 - **Your shell, your sessions** — it runs your login shell, so your existing
   config attaches tmux (e.g. fish: `exec tmux new-session -A -s main`) and
   sessions persist between toggles. Detaching (`prefix d`) hides the panel.
@@ -59,8 +59,12 @@ make install  # build + install to /Applications + start at login
 
 ## Use it
 
-- `§` or `Option+6` — show / hide
+- `§`, `Option+6`, or `Cmd+§` (``Cmd+` `` on US keyboards) — show / hide
 - That's it. Everything else is your normal shell and tmux.
+
+The `Cmd` variant follows your keyboard layout: `Cmd+§` on British/ISO boards,
+``Cmd+` `` on US/ANSI. Only one is bound, so on a British board ``Cmd+` ``
+stays free for macOS's window cycling.
 
 ### Optional config
 
