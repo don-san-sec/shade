@@ -26,16 +26,10 @@ no window chrome — just your shell, instantly.
 
 ## Install
 
-### Prebuilt binary (recommended)
-
 ```sh
 brew tap don-san-sec/tap
 brew install --cask don-san-sec/tap/shade
 ```
-
-Both parts of the name are required: the tap must be added explicitly (Homebrew
-no longer auto-taps), and an unrelated `shade` cask exists in the official
-Homebrew repo, so the bare `shade` would install the wrong app.
 
 Or grab `Shade-<version>-macos-arm64.zip` from
 [Releases](../../releases), unzip, and move `Shade.app` to `/Applications`.
@@ -49,20 +43,6 @@ xattr -dr com.apple.quarantine /Applications/Shade.app
 
 **First launch** registers shade as a login item (so the toggle shortcut works
 after reboot) — just open it once. No other setup.
-
-### Build from source
-
-Requires macOS 14+ on Apple Silicon, Xcode Command Line Tools
-(`xcode-select --install`), and `brew install rust zig@0.15`.
-
-```sh
-git clone --recurse-submodules https://github.com/don-san-sec/shade
-cd shade
-make lib      # one-time, ~20-40 min: builds libghostty
-make install  # build + install to /Applications + start at login
-```
-
-`make run` tries it without installing; `make uninstall` removes it.
 
 ## Use it
 
