@@ -45,6 +45,9 @@ handles this for you; a manual install needs one command:
 xattr -dr com.apple.quarantine /Applications/Shade.app
 ```
 
+**First launch** registers shade as a login item (so the toggle shortcut works
+after reboot) — just open it once. No other setup.
+
 ### Build from source
 
 Requires macOS 14+ on Apple Silicon, Xcode Command Line Tools
