@@ -156,13 +156,17 @@ extern "C" fn complete_thunk(ctx: *mut c_void) {
     }
 }
 
-extern "C" fn read_clipboard_cb(_ud: *mut c_void, _clipboard: c_int, ud: *mut c_void) {
+// libghostty expects this callback to return whether the request was
+// accepted. Returning void here is an ABI mismatch: libghostty may interpret
+// a stale return register as false and free the request before completion.
+extern "C" fn read_clipboard_cb(_ud: *mut c_void, _clipboard: c_int, ud: *mut c_void) -> bool {
     let surface = SURFACE.load(Ordering::Relaxed);
     if surface.is_null() {
-        return;
+        return false;
     }
     let ctx = Box::into_raw(Box::new(CompleteCtx { surface, userdata: ud }));
     unsafe { dispatch_async_f(main_queue(), ctx as *mut c_void, complete_thunk) };
+    true
 }
 
 extern "C" fn confirm_read_clipboard_cb(
