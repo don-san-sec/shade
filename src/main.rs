@@ -223,18 +223,37 @@ fn ns_translation_mods(ghostty: c_int) -> u64 {
     flags
 }
 
-/// GhosttyCharacters logic from Ghostty's NSEvent+Extension.swift: strip
-/// control characters (encoded by Ghostty itself) and PUA function keys.
-fn sanitized_text(raw: &str) -> Option<CString> {
-    let first = raw.chars().next()?;
-    let cp = first as u32;
-    if cp < 0x20 {
-        return None; // control chars are encoded by ghostty from the keycode
+// NSEventModifierFlagControl (device-independent flag bit).
+const NS_MOD_CONTROL: u64 = 1 << 18;
+
+/// GhosttyCharacters logic from Ghostty's NSEvent+Extension.swift.
+///
+/// A single control character means macOS already applied ctrl to the
+/// translation (ctrl+[ arrives as ESC, ctrl+space as NUL). Ghostty does
+/// NOT drop the text: it re-translates the event *without* ctrl and passes
+/// that as text. The core encoder needs it — ctrl+[ (also ctrl+i, ctrl+m
+/// and ctrl+shift+letter) are fixterms CSI u sequences built from the text
+/// (`ESC [ 91;5 u`), not C0 bytes derivable from the keycode; with no text
+/// the legacy encoder emits nothing at all. PUA function keys are dropped.
+unsafe fn event_text(k: &QuakeKey, translation_flags: u64) -> Option<CString> {
+    let chars = quake_event_chars(k.event, translation_flags);
+    if chars.is_null() {
+        return None;
+    }
+    let s = CStr::from_ptr(chars).to_string_lossy().into_owned();
+    let mut it = s.chars();
+    let cp = it.next()? as u32;
+    if cp < 0x20 && it.next().is_none() {
+        let no_ctrl = quake_event_chars(k.event, k.mods & !NS_MOD_CONTROL);
+        if no_ctrl.is_null() {
+            return None;
+        }
+        return CString::new(CStr::from_ptr(no_ctrl).to_string_lossy().into_owned()).ok();
     }
     if (0xF700..=0xF8FF).contains(&cp) {
         return None; // function-key PUA range
     }
-    CString::new(raw).ok()
+    CString::new(s).ok()
 }
 
 unsafe extern "C" fn key_down_hook(k: QuakeKey) {
@@ -251,18 +270,12 @@ unsafe extern "C" fn key_down_hook(k: QuakeKey) {
     let text_ptr: *const c_char = if k.event.is_null() {
         ptr::null()
     } else {
-        let chars = quake_event_chars(k.event, ns_translation_mods(tm));
-        if chars.is_null() {
-            ptr::null()
-        } else {
-            let s = CStr::from_ptr(chars).to_string_lossy().into_owned();
-            match sanitized_text(&s) {
-                Some(c) => {
-                    owned_text = Some(c);
-                    owned_text.as_ref().unwrap().as_ptr()
-                }
-                None => ptr::null(),
+        match event_text(&k, ns_translation_mods(tm)) {
+            Some(c) => {
+                owned_text = Some(c);
+                owned_text.as_ref().unwrap().as_ptr()
             }
+            None => ptr::null(),
         }
     };
 
