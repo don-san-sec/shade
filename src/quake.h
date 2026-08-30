@@ -46,6 +46,7 @@ void quake_show(void);
 void quake_hide(void);
 bool quake_visible(void);
 void *quake_content_view(void);
+double quake_top_inset(void);
 
 // Characters for `event` translated under `mods` (NSEvent modifier flags;
 // only shift/control/option/command of the mask are applied). Returns NULL

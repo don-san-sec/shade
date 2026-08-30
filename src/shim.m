@@ -384,6 +384,12 @@ bool quake_visible(void) { return g_visible; }
 
 void *quake_content_view(void) { return (__bridge void *)g_view; }
 
+// Height of the notch/menu-bar band on the panel's screen (0 if none).
+double quake_top_inset(void) {
+    NSScreen *screen = g_panel != nil ? g_panel.screen : screenForMouse();
+    return (double)screen.safeAreaInsets.top;
+}
+
 const char *quake_event_chars(const void *event, uint64_t mods) {
     NSEvent *e = (__bridge NSEvent *)event;
     // Only the four translation-relevant flags are applied.

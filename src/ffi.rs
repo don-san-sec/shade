@@ -114,6 +114,8 @@ extern "C" {
     pub fn ghostty_config_load_default_files(cfg: ghostty_config_t);
     pub fn ghostty_config_load_file(cfg: ghostty_config_t, path: *const c_char);
     pub fn ghostty_config_finalize(cfg: ghostty_config_t);
+    pub fn ghostty_config_free(cfg: ghostty_config_t);
+    pub fn ghostty_surface_update_config(surface: ghostty_surface_t, cfg: ghostty_config_t);
     pub fn ghostty_config_diagnostics_count(cfg: ghostty_config_t) -> u32;
     pub fn ghostty_app_new(
         runtime: *const ghostty_runtime_config_s,
@@ -238,6 +240,7 @@ extern "C" {
     pub fn quake_beep();
     pub fn quake_logstr(msg: *const c_char);
     pub fn quake_unregister_agent();
+    pub fn quake_top_inset() -> f64;
 
     // Only its address is used; libghostty calls it with clang's ABI for
     // the by-value ghostty_action_s parameter.
