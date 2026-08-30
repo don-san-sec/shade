@@ -1,20 +1,59 @@
 # quake
 
-A fullscreen, §-toggle terminal. libghostty (Metal, GPU-rendered) core,
-Rust logic, tiny ObjC shim for AppKit/Carbon. No tabs, no splits, no chrome.
+**A one-key dropdown terminal for macOS.** Press `§` and a fullscreen,
+GPU-rendered terminal drops over whatever you're doing. Press it again and
+it's gone. That's the whole idea.
 
-Press `§` (the ISO section key left of `Z`, or `Option+6` which types `§`
-on the British layout) or `Esc` to toggle. Fullscreen, no animation, covers
-the menu bar, floats over fullscreen apps, follows the mouse's screen.
+![quake running tmux](assets/screenshot.png)
 
-The dropdown runs your login shell. Your shell's own config attaches tmux
-(e.g. fish: `exec tmux new-session -A -s main`), so sessions persist. The
-surface is killed on hide and respawned on show. Detaching (`prefix d`)
-auto-hides the panel.
+quake wraps [libghostty](https://ghostty.org) (Metal, GPU-rendered) in a tiny
+Rust + Objective-C shell — no tabs, no splits, no chrome, no settings pane.
+It borrows Ghostty's own renderer and key handling, so your existing
+`~/.config/ghostty/config` (theme, font, keybinds) just works.
 
-Theme/font/keybinds come from your existing `~/.config/ghostty/config`
-(the bundle ships ghostty's resources so `theme = ...` resolves, and
-terminfo for `xterm-ghostty` is compiled in via `tic`).
+## Why you might like it
+
+- **One key, zero friction** — `§` (the ISO key left of `Z`) or `Option+6`
+  (which types `§` on the British layout) summons it from anywhere, on the
+  screen your mouse is on. It floats over fullscreen apps and covers the
+  menu bar.
+- **Your shell, your sessions** — the dropdown runs your login shell, so
+  your own config attaches tmux (e.g. fish: `exec tmux new-session -A -s main`)
+  and sessions persist across toggles. Detaching (`prefix d`) auto-hides
+  the panel.
+- **Fast and quiet** — no animation, no blur, no shadows; the surface is
+  killed on hide and respawned on show. It registers as a normal login
+  item, starts at login, and stays out of your Dock.
+- **Ghostty-grade input** — key events are translated exactly the way
+  Ghostty's own AppKit surface does, including fixterms CSI u encoding, so
+  `ctrl-[`, `ctrl-i` and friends arrive intact in tmux and vim.
+
+## Quick start
+
+Prerequisites:
+
+- macOS 14+ on Apple Silicon
+- Xcode Command Line Tools (`xcode-select --install`) — full Xcode NOT needed
+- `brew install rust zig@0.15`
+
+```sh
+git clone --recurse-submodules <this repo>
+cd quake
+make lib      # one-time: patched zig + ghostty patches + libghostty.a (~20-40 min)
+make          # build Quake.app into build/
+make run      # try it without installing
+make install  # /Applications/Quake.app + login item
+make uninstall
+```
+
+`make install` copies the app to `/Applications`, installs a LaunchAgent
+(a plain agent is used because SMAppService/BTM entries get
+launch-constraint-killed for ad-hoc signed apps on macOS 27 beta — it still
+shows up under System Settings → General → Background App Activity), and
+starts it. It respawns if killed.
+
+`make lib` is slow once: it compiles libghostty from the vendored source.
+Everything after is seconds.
 
 ## Config (optional)
 
@@ -29,45 +68,18 @@ command=htop              # any command; replaces the login shell entirely
 Without these, quake spawns the login shell (whose config typically
 attaches tmux).
 
-## Prerequisites
+## How it works
 
-- macOS 14+ on Apple Silicon
-- Xcode Command Line Tools (`xcode-select --install`) — full Xcode NOT needed
-- `brew install rust zig@0.15`
-
-## Build / install / uninstall
-
-```sh
-git clone --recurse-submodules <this repo>
-cd quake
-make lib      # one-time: patched zig + ghostty patches + libghostty.a (~20-40 min)
-make          # build Quake.app into build/
-make run      # run without installing
-make install  # /Applications/Quake.app + system login item (SMAppService)
-make uninstall
-```
-
-`make install` registers quake with Background Task Management — it shows up
-as a normal entry in System Settings → General → Login Items (toggleable
-there), starts at login, and respawns if killed. `make uninstall` unregisters
-it cleanly (no ghost entries left in the list).
-
-`make lib` is slow once: it compiles libghostty from the vendored ghostty
-source. Everything after is seconds. The vendored ghostty is pinned to
-v1.3.1 with two build patches in `patches/` (applied automatically), and
-the zig toolchain is copied into `build/zig` with a libcxx patch
-(`tools/prepare-zig.sh`).
-
-## Layout
-
-- `src/main.rs` — libghostty lifecycle, event translation, toggle logic
+- `src/main.rs` — libghostty lifecycle, AppKit key/mouse event translation
+  (mirroring Ghostty's own macOS surface), toggle logic
 - `src/ffi.rs` — libghostty C ABI bindings
-- `src/shim.m` — AppKit panel/view, Carbon hotkey, clipboard, pasteboard
+- `src/shim.m` — AppKit panel/view, Carbon global hotkey, clipboard
 - `tools/fix-lib.sh` — rebuilds libghostty.a (works around Xcode 26+
   libtool dropping zig objects)
-- `vendor/ghostty` — ghostty v1.3.1 (patched: xcframework/app build made
-  optional for CLT-only hosts; metallib embedded from a prebuilt blob
-  because CLT has no `metal` compiler)
+- `vendor/ghostty` — ghostty v1.3.1, pinned, with two build patches in
+  `patches/` applied automatically
+- The bundle ships Ghostty's resources so `theme = ...` resolves, and
+  terminfo for `xterm-ghostty` is compiled in via `tic`
 
 ## Notes / gotchas discovered
 
@@ -96,3 +108,15 @@ the zig toolchain is copied into `build/zig` with a libcxx patch
 - Shell integration is disabled for the embedded surface
   (`~/.config/quake/ghostty-override`, written at startup) — pointless
   for a tmux dropdown and was implicated in early-exit debugging.
+- Key translation detail: macOS delivers `ctrl-[` as a literal ESC
+  character. Ghostty's macOS surface re-translates such events without
+  control and passes the plain character as text, which the core encoder
+  needs for fixterms CSI u sequences (`ctrl-[` → `ESC [ 91;5 u`). quake
+  mirrors this in `event_text()` in `src/main.rs`.
+
+## Credits
+
+- [Ghostty](https://ghostty.org) by Mitchell Hashimoto & contributors
+  (MIT) — the terminal core, renderer, and the event-translation logic
+  quake borrows.
+- quake itself: see `LICENSE`.
