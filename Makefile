@@ -50,8 +50,12 @@ run: build
 # agent with SMAppService (System Settings → Login Items → Quake) and BTM
 # starts it. Also cleans up the legacy raw LaunchAgent from older installs.
 install: build
-	-launchctl bootout gui/$(UID)/dev.quake.app
 	-pkill -x Quake
+	# Unregister BEFORE replacing the bundle: BTM pins the agent to the
+	# ad-hoc cdhash, so swapping binaries under a live registration gets
+	# the job killed with a launch-constraint violation (EX_CONFIG).
+	-/Applications/Quake.app/Contents/MacOS/Quake --unregister-agent
+	-launchctl bootout gui/$(UID)/dev.quake.app
 	sleep 1
 	rm -f $(HOME)/Library/LaunchAgents/dev.quake.agent.plist
 	rm -rf /Applications/Quake.app

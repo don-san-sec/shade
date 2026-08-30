@@ -429,30 +429,6 @@ fn show() {
         ghostty_surface_set_content_scale(surface, scale, scale);
         ghostty_surface_set_size(surface, w as u32, h as u32);
 
-        // Notch awareness: pad the top by the screen's safe-area inset so
-        // the first rows are never under the camera housing. (Padding is
-        // top+bottom in ghostty; the bottom slack is harmless.)
-        let inset = quake_top_inset();
-        if inset > 0.0 {
-            let cfg2 = ghostty_config_new();
-            ghostty_config_load_default_files(cfg2);
-            if let Some(dir) = home_config_dir() {
-                let ov = dir.join("ghostty-override");
-                std::fs::write(
-                    &ov,
-                    format!("shell-integration = none\nwindow-padding-y = {}\n", inset as u32),
-                )
-                .ok();
-                let ov_c = CString::new(ov.to_str().unwrap()).unwrap();
-                ghostty_config_load_file(cfg2, ov_c.as_ptr());
-            }
-            ghostty_config_finalize(cfg2);
-            ghostty_surface_update_config(surface, cfg2);
-            ghostty_config_free(cfg2);
-            // padding changes cell layout; nudge a resize so it applies now
-            ghostty_surface_set_size(surface, w as u32, h as u32);
-        }
-
         ghostty_surface_set_focus(surface, true);
         ghostty_surface_refresh(surface);
         HIDDEN.store(false, Ordering::Relaxed);
@@ -522,12 +498,7 @@ fn main() {
         // setup breaks the spawn, so disable it.
         if let Some(dir) = home_config_dir() {
             let ov = dir.join("ghostty-override");
-            let inset = quake_top_inset() as u32;
-            std::fs::write(
-                &ov,
-                format!("shell-integration = none\nwindow-padding-y = {}\n", inset),
-            )
-            .ok();
+            std::fs::write(&ov, "shell-integration = none\n").ok();
             let ov_c = CString::new(ov.to_str().unwrap()).unwrap();
             ghostty_config_load_file(cfg, ov_c.as_ptr());
         }
