@@ -1,0 +1,119 @@
+diff --git a/build.zig b/build.zig
+index f9d861b..a8ebb31 100644
+--- a/build.zig
++++ b/build.zig
+@@ -147,35 +147,45 @@ pub fn build(b: *std.Build) !void {
+ 
+     // macOS only artifacts. These will error if they're initialized for
+     // other targets.
++    // [quake] patch: initializing the xcframework eagerly configures iOS
++    // targets and requires a full Xcode install (CLT-only hosts crash with
++    // DarwinSdkNotFound). Only do it when an Xcode artifact is requested;
++    // otherwise install the plain static library and resources.
+     if (config.target.result.os.tag.isDarwin()) {
+-        // Ghostty xcframework
+-        const xcframework = try buildpkg.GhosttyXCFramework.init(
+-            b,
+-            &deps,
+-            config.xcframework_target,
+-        );
+-        if (config.emit_xcframework) {
+-            xcframework.install();
++        if (config.emit_xcframework or config.emit_macos_app) {
++            // Ghostty xcframework
++            const xcframework = try buildpkg.GhosttyXCFramework.init(
++                b,
++                &deps,
++                config.xcframework_target,
++            );
++            if (config.emit_xcframework) {
++                xcframework.install();
+ 
+-            // The xcframework build always installs resources because our
+-            // macOS xcode project contains references to them.
+-            resources.install();
+-            if (i18n) |v| v.install();
+-        }
++                // The xcframework build always installs resources because our
++                // macOS xcode project contains references to them.
++                resources.install();
++                if (i18n) |v| v.install();
++            }
+ 
+-        // Ghostty macOS app
+-        const macos_app = try buildpkg.GhosttyXcodebuild.init(
+-            b,
+-            &config,
+-            .{
+-                .xcframework = &xcframework,
+-                .docs = &docs,
+-                .i18n = if (i18n) |v| &v else null,
+-                .resources = &resources,
+-            },
+-        );
+-        if (config.emit_macos_app) {
+-            macos_app.install();
++            // Ghostty macOS app
++            const macos_app = try buildpkg.GhosttyXcodebuild.init(
++                b,
++                &config,
++                .{
++                    .xcframework = &xcframework,
++                    .docs = &docs,
++                    .i18n = if (i18n) |v| &v else null,
++                    .resources = &resources,
++                },
++            );
++            if (config.emit_macos_app) {
++                macos_app.install();
++            }
++        } else {
++            libghostty_shared.installHeader();
++            libghostty_static.install("libghostty.a");
++            resources.install();
+         }
+     }
+ 
+@@ -202,7 +212,9 @@ pub fn build(b: *std.Build) !void {
+ 
+         // On macOS we can run the macOS app. For "run" we always force
+         // a native-only build so that we can run as quickly as possible.
+-        if (config.target.result.os.tag.isDarwin()) {
++        // [quake] patch: gated behind emit_macos_app so CLT-only hosts can
++        // build the plain static library without iOS SDK detection.
++        if (config.target.result.os.tag.isDarwin() and config.emit_macos_app) {
+             const xcframework_native = try buildpkg.GhosttyXCFramework.init(
+                 b,
+                 &deps,
+diff --git a/src/build/SharedDeps.zig b/src/build/SharedDeps.zig
+index 9276c99..92d5740 100644
+--- a/src/build/SharedDeps.zig
++++ b/src/build/SharedDeps.zig
+@@ -380,11 +380,22 @@ pub fn add(
+     if (step.rootModuleTarget().os.tag.isDarwin()) {
+         try @import("apple_sdk").addPaths(b, step);
+ 
+-        const metallib = self.metallib.?;
+-        metallib.output.addStepDependencies(&step.step);
+-        step.root_module.addAnonymousImport("ghostty_metallib", .{
+-            .root_source_file = metallib.output,
+-        });
++        // [quake] CLT-only hosts have no `metal` compiler, so the build
++        // cannot produce the metallib. QUAKE_METALLIB points at a prebuilt
++        // metallib (e.g. extracted from an official Ghostty.app of the same
++        // version) which gets embedded instead.
++        const prebuilt = std.process.getEnvVarOwned(b.allocator, "QUAKE_METALLIB") catch null;
++        if (prebuilt) |path| {
++            step.root_module.addAnonymousImport("ghostty_metallib", .{
++                .root_source_file = .{ .cwd_relative = path },
++            });
++        } else {
++            const metallib = self.metallib.?;
++            metallib.output.addStepDependencies(&step.step);
++            step.root_module.addAnonymousImport("ghostty_metallib", .{
++                .root_source_file = metallib.output,
++            });
++        }
+     }
+ 
+     // Other dependencies, mostly pure Zig

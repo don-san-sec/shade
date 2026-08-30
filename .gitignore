@@ -1,0 +1,11 @@
+# Build outputs
+/target/
+/build/
+/vendor/ghostty/.zig-cache/
+/vendor/ghostty/zig-out/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log

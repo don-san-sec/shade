@@ -1,0 +1,9 @@
+# cargo 1.98 (Homebrew) silently drops `cargo:rustc-link-framework`
+# directives emitted by build scripts; pass frameworks directly instead.
+[build]
+rustflags = [
+    "-C",
+    "link-args=-L /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/system",
+    "-C",
+    "link-args=-framework AppKit -framework Carbon -framework Metal -framework MetalKit -framework CoreText -framework CoreVideo -framework QuartzCore -framework CoreServices -framework CoreFoundation -framework Foundation -framework IOKit -framework Security -framework IOSurface",
+]
