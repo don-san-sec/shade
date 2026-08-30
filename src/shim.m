@@ -10,6 +10,7 @@
 #import <Carbon/Carbon.h>
 #import <ServiceManagement/ServiceManagement.h>
 #import <dlfcn.h>
+#import <objc/message.h>
 #import <os/log.h>
 #include <stdlib.h>
 #include <string.h>
@@ -167,6 +168,35 @@ enum { kQuakeSectionKey = 0x0A, kQuakeSixKey = 0x16 };
 
 #pragma mark - Panel
 
+// Square corners. macOS 26+ shapes titled windows with rounded corners via
+// private NSThemeFrame getters; the setters are no-ops on 27 and the bottom
+// corner shape is computed once at window init. quake owns the process and
+// has exactly one window, so we override the getters on NSThemeFrame itself,
+// before any window is created (called from quake_run).
+static CGFloat zeroRadius(id self, SEL _cmd) { (void)self; (void)_cmd; return 0.0; }
+static CGSize zeroSize(id self, SEL _cmd) { (void)self; (void)_cmd; return CGSizeZero; }
+static BOOL noBool(id self, SEL _cmd) { (void)self; (void)_cmd; return NO; }
+
+static void swizzleCornerGetters(void) {
+    Class cls = NSClassFromString(@"NSThemeFrame");
+    if (cls == Nil) return;
+    struct { const char *name; IMP impl; } overrides[] = {
+        {"_cornerRadius", (IMP)zeroRadius},
+        {"_getCachedDefaultWindowCornerRadius", (IMP)zeroRadius},
+        {"_topCornerSize", (IMP)zeroSize},
+        {"_bottomCornerSize", (IMP)zeroSize},
+        {"_shouldRoundCornersForSurface", (IMP)noBool},
+        {"topCornerRounded", (IMP)noBool},
+        {"bottomCornerRounded", (IMP)noBool},
+    };
+    for (unsigned i = 0; i < sizeof(overrides)/sizeof(overrides[0]); i++) {
+        SEL sel = NSSelectorFromString([NSString stringWithUTF8String:overrides[i].name]);
+        Method m = class_getInstanceMethod(cls, sel);
+        if (m != NULL)
+            class_replaceMethod(cls, sel, overrides[i].impl, method_getTypeEncoding(m));
+    }
+}
+
 @interface QuakePanel : NSPanel
 @end
 
@@ -245,6 +275,10 @@ int quake_run(const QuakeHooks *hooks) {
 
     NSApplication *app = [NSApplication sharedApplication];
     [app setActivationPolicy:NSApplicationActivationPolicyAccessory];
+
+    // Square window corners. Must run after NSApplication is initialized
+    // (NSThemeFrame is loaded lazily) but before any window is created.
+    swizzleCornerGetters();
     [app setDelegate:[[QuakeDelegate alloc] init]];
 
     // Minimal main menu — apps without one can be denied key status.
