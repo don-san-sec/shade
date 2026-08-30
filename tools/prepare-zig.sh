@@ -24,7 +24,10 @@ if [ -x "$DEST/bin/zig" ] && [ -f "$DEST/.shade-patched" ]; then
 fi
 
 rm -rf "$DEST"
-cp -R "$ZIG_SRC" "$DEST"
+mkdir -p "$(dirname "$DEST")"
+# Homebrew's opt path is a symlink; dereference it so the local toolchain
+# remains self-contained after the source install path changes.
+cp -RL "$ZIG_SRC" "$DEST"
 chmod -R u+w "$DEST"
 
 python3 - "$DEST/lib/zig/libcxx/include/math.h" <<'PYEOF'
