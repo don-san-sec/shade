@@ -4,11 +4,11 @@ cask "shade" do
 
   url "https://github.com/don-san-sec/shade/releases/download/v#{version}/Shade-#{version}-macos-arm64.zip"
   name "Shade"
-  desc "§-toggle, fullscreen, GPU-rendered drop-down terminal (libghostty)"
+  desc "One-key (Cmd+§) fullscreen, GPU-rendered drop-down terminal (libghostty)"
   homepage "https://github.com/don-san-sec/shade"
 
   depends_on arch: :arm64
-  depends_on macos: ">= :sonoma"
+  depends_on macos: :sonoma
 
   app "Shade.app"
 

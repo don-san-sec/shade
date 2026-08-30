@@ -35,9 +35,13 @@ Casks live in a separate **tap** repo, not this one. Create
 dir, then users run:
 
 ```sh
-brew tap don-san-sec/tap
-brew install --cask shade
+brew install --cask don-san-sec/tap/shade
 ```
+
+Note the tap-qualified name: an unrelated `shade` cask exists in the official
+homebrew-cask repo, and the bare name resolves to that one even when our tap
+is tapped. Always use `don-san-sec/tap/shade`. (If this becomes annoying,
+rename the cask token to something unique like `shade-terminal`.)
 
 Why a cask (prebuilt binary) and not a formula (build from source):
 `make lib` compiles libghostty from the vendored source and takes 20–40 min.
