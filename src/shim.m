@@ -312,7 +312,7 @@ int shade_run(const ShadeHooks *hooks) {
             }
         }];
 
-    // Global hotkey: § with no modifiers.
+    // Global hotkeys: plain §, Option+6, and a layout-dependent Cmd variant.
     EventTypeSpec spec = { kEventClassKeyboard, kEventHotKeyPressed };
     InstallEventHandler(GetEventDispatcherTarget(), hotkeyHandler, 1, &spec, NULL, NULL);
     EventHotKeyID keyID1 = { .signature = 'SHAD', .id = 1 };

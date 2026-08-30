@@ -59,12 +59,25 @@ make install  # build + install to /Applications + start at login
 
 ## Use it
 
-- `§`, `Option+6`, or `Cmd+§` (``Cmd+` `` on US keyboards) — show / hide
-- That's it. Everything else is your normal shell and tmux.
+Show / hide with any of:
 
-The `Cmd` variant follows your keyboard layout: `Cmd+§` on British/ISO boards,
-``Cmd+` `` on US/ANSI. Only one is bound, so on a British board ``Cmd+` ``
-stays free for macOS's window cycling.
+| Key | Layout |
+|---|---|
+| `§` | any (the key left of `Z`; no modifier) |
+| `Option+6` | British (types `§`) |
+| `Cmd+§` | British / ISO |
+| ``Cmd+` `` | US / ANSI |
+
+Everything else is your normal shell and tmux.
+
+Notes:
+
+- The `Cmd` variant follows your physical layout — `Cmd+§` on ISO,
+  ``Cmd+` `` on ANSI. Only one is bound, so on a British board ``Cmd+` ``
+  stays free for macOS's window cycling.
+- Plain `§` is a toggle, so you can't type the `§` character while shade is
+  running. Use `Cmd+§` / ``Cmd+` `` if you need to type it, or drop the plain
+  binding (see `src/shim.m`).
 
 ### Optional config
 
