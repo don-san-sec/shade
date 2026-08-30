@@ -59,6 +59,49 @@ fn home_config_dir() -> Option<PathBuf> {
     std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config").join("shade"))
 }
 
+/// Register shade as a login item on first launch from /Applications.
+///
+/// Uses a raw LaunchAgent (~/Library/LaunchAgents/dev.shade.agent.plist),
+/// not SMAppService — BTM launch-constraint-kills ad-hoc-signed apps on
+/// macOS 27. We only write the plist; we do NOT `launchctl bootstrap`, because
+/// self-registration happens while this instance is already running and a
+/// bootstrap would spawn a duplicate. The agent takes effect at next login.
+fn maybe_register_login_item() {
+    // Only when installed — a dev run from build/ must not register.
+    let exe = match std::env::current_exe() {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    let exe_str = exe.to_string_lossy();
+    if !exe_str.starts_with("/Applications/") {
+        return;
+    }
+
+    let Some(home) = std::env::var_os("HOME") else { return };
+    let agent_dir = PathBuf::from(&home).join("Library").join("LaunchAgents");
+    let agent_path = agent_dir.join("dev.shade.agent.plist");
+    if agent_path.exists() {
+        return; // already registered
+    }
+
+    // The bundled template lives at Contents/Library/LaunchAgents/ and holds
+    // a @BIN@ placeholder for the absolute program path.
+    let template = exe
+        .parent() // .../Contents/MacOS
+        .and_then(|p| p.parent()) // .../Contents
+        .map(|c| c.join("Library/LaunchAgents/dev.shade.agent.plist"));
+    let Some(tpl) = template else { return };
+    let Ok(contents) = std::fs::read_to_string(&tpl) else { return };
+    let plist = contents.replace("@BIN@", &exe_str);
+
+    if std::fs::create_dir_all(&agent_dir).is_err() {
+        return;
+    }
+    if std::fs::write(&agent_path, plist).is_ok() {
+        log_str("registered login item (raw LaunchAgent)");
+    }
+}
+
 /// Ghostty runtime resources (terminfo, shell integration) are shipped
 /// inside the app bundle when installed.
 fn find_resources() -> Option<CString> {
@@ -468,6 +511,10 @@ fn main() {
             shade_unregister_agent();
             return;
         }
+
+        // First launch from an installed location: register the login item so
+        // the toggle shortcut works after reboot. No-op for dev runs.
+        maybe_register_login_item();
 
         COMMAND = load_command();
         RESOURCES = find_resources();
