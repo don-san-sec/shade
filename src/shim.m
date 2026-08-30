@@ -80,7 +80,11 @@ enum { kShadeSectionKey = 0x0A, kShadeGraveKey = 0x32, kShadeQKey = 0x0C };
             return YES;
         }
     }
-    return [super performKeyEquivalent:event];
+    // Do not call NSView's implementation here. AppKit's default
+    // key-equivalent dispatch can route standard Cmd-key commands (notably
+    // Cmd-V) through the application menu/responder chain. The embedded
+    // terminal must receive those as ordinary key events instead.
+    return NO;
 }
 
 - (void)resetCursorRects {
