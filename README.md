@@ -30,6 +30,23 @@ It borrows Ghostty's own renderer and key handling, so your existing
 
 ## Quick start
 
+### Prebuilt binary (fast)
+
+Grab `Shade-<version>-macos-arm64.zip` from [Releases](../../releases), unzip,
+and either drop `Shade.app` in `/Applications` yourself or use Homebrew:
+
+```sh
+brew tap don-san-sec/tap
+brew install --cask shade
+```
+
+It's ad-hoc signed, so on first launch Gatekeeper will warn — the cask strips
+the quarantine bit for you; a manual install needs
+`xattr -dr com.apple.quarantine /Applications/Shade.app` once.
+See `DISTRIBUTING.md` for how releases are cut.
+
+### Build from source
+
 Prerequisites:
 
 - macOS 14+ on Apple Silicon

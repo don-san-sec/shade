@@ -9,7 +9,7 @@ BIN       := $(APP)/Contents/MacOS/Shade
 UID       := $(shell id -u)
 AGENT     := $(HOME)/Library/LaunchAgents/dev.shade.agent.plist
 
-.PHONY: all lib build install uninstall run clean
+.PHONY: all lib build install uninstall run clean package notarize
 
 all: build
 
@@ -70,4 +70,28 @@ uninstall:
 	rm -rf /Applications/Shade.app
 
 clean:
-	rm -rf target $(APP)
+	rm -rf target $(APP) dist
+
+# ---------------------------------------------------------------------------
+# Packaging / distribution
+# ---------------------------------------------------------------------------
+VERSION   := $(shell /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' assets/Info.plist)
+DIST      := dist
+# .zip for direct download (preserves the bundle, Gatekeeper-friendly format),
+# plus a SHA256 for the Homebrew cask. App is arm64-only + ad-hoc signed.
+package: build
+	mkdir -p $(DIST)
+	rm -f $(DIST)/Shade-$(VERSION)-macos-arm64.zip
+	ditto -c -k --sequesterRsrc --keepParent $(APP) \
+		$(DIST)/Shade-$(VERSION)-macos-arm64.zip
+	shasum -a 256 $(DIST)/Shade-$(VERSION)-macos-arm64.zip \
+		> $(DIST)/Shade-$(VERSION)-macos-arm64.zip.sha256
+	@echo "packed $(DIST)/Shade-$(VERSION)-macos-arm64.zip"
+	@cat $(DIST)/Shade-$(VERSION)-macos-arm64.zip.sha256
+
+# Notarize with an Apple Developer ID (requires AC_PASSWORD/AC_PROVIDER creds).
+# No-op-friendly: only runs when NOTARIZE=1 and credentials are present.
+notarize: package
+	xcrun notarytool submit $(DIST)/Shade-$(VERSION)-macos-arm64.zip \
+		--wait $(if $(AC_PROFILE),--keychain-profile $(AC_PROFILE),)
+	xcrun stapler staple $(APP)
