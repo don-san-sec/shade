@@ -29,11 +29,13 @@ no window chrome — just your shell, instantly.
 ### Prebuilt binary (recommended)
 
 ```sh
+brew tap don-san-sec/tap
 brew install --cask don-san-sec/tap/shade
 ```
 
-(The tap-qualified name is required — an unrelated `shade` cask exists in the
-official Homebrew repo, so the bare `shade` would install the wrong app.)
+Both parts of the name are required: the tap must be added explicitly (Homebrew
+no longer auto-taps), and an unrelated `shade` cask exists in the official
+Homebrew repo, so the bare `shade` would install the wrong app.
 
 Or grab `Shade-<version>-macos-arm64.zip` from
 [Releases](../../releases), unzip, and move `Shade.app` to `/Applications`.
