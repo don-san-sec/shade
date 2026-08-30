@@ -43,9 +43,14 @@ cd quake
 make lib      # one-time: patched zig + ghostty patches + libghostty.a (~20-40 min)
 make          # build Quake.app into build/
 make run      # run without installing
-make install  # /Applications/Quake.app + LaunchAgent (starts at login)
+make install  # /Applications/Quake.app + system login item (SMAppService)
 make uninstall
 ```
+
+`make install` registers quake with Background Task Management — it shows up
+as a normal entry in System Settings → General → Login Items (toggleable
+there), starts at login, and respawns if killed. `make uninstall` unregisters
+it cleanly (no ghost entries left in the list).
 
 `make lib` is slow once: it compiles libghostty from the vendored ghostty
 source. Everything after is seconds. The vendored ghostty is pinned to

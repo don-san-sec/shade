@@ -8,6 +8,7 @@
 
 #import <AppKit/AppKit.h>
 #import <Carbon/Carbon.h>
+#import <ServiceManagement/ServiceManagement.h>
 #import <dlfcn.h>
 #import <os/log.h>
 #include <stdlib.h>
@@ -219,10 +220,34 @@ static OSStatus hotkeyHandler(EventHandlerCallRef call, EventRef event, void *us
 
 #pragma mark - Public API
 
+// Register the bundled launch agent as a proper system login item
+// (Background Task Management / SMAppService). Only when running from the
+// installed location — dev runs (build/Quake.app) must not register.
+void quake_register_agent(void) {
+    SMAppService *svc = [SMAppService agentServiceWithPlistName:@"dev.quake.agent.plist"];
+    NSError *err = nil;
+    if (![svc registerAndReturnError:&err] && err != nil) {
+        qlog("agent registration failed: %{public}@", err);
+    }
+}
+
+void quake_unregister_agent(void) {
+    SMAppService *svc = [SMAppService agentServiceWithPlistName:@"dev.quake.agent.plist"];
+    dispatch_semaphore_t done = dispatch_semaphore_create(0);
+    [svc unregisterWithCompletionHandler:^(NSError *err) {
+        if (err != nil) qlog("agent unregister failed: %{public}@", err);
+        dispatch_semaphore_signal(done);
+    }];
+    dispatch_semaphore_wait(done, dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC));
+}
+
 int quake_run(const QuakeHooks *hooks) {
     g_hooks = *hooks;
 
     NSApplication *app = [NSApplication sharedApplication];
+    if ([[[NSBundle mainBundle] bundlePath] isEqualToString:@"/Applications/Quake.app"]) {
+        quake_register_agent();
+    }
     [app setActivationPolicy:NSApplicationActivationPolicyAccessory];
     [app setDelegate:[[QuakeDelegate alloc] init]];
 
@@ -390,6 +415,9 @@ void quake_beep(void) { NSBeep(); }
 void quake_logstr(const char *msg) {
     os_log(OS_LOG_DEFAULT, "[quake] %{public}s", msg);
 }
+
+void quake_register_agent(void);
+void quake_unregister_agent(void);
 
 // libghostty calls action callbacks with a by-value struct; clang's ABI
 // for that must be matched exactly, so it is handled here and simplified

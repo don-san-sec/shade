@@ -449,6 +449,12 @@ fn hide() {
 
 fn main() {
     unsafe {
+        // `quake --unregister-agent`: remove the login item and exit.
+        if std::env::args().any(|a| a == "--unregister-agent") {
+            quake_unregister_agent();
+            return;
+        }
+
         COMMAND = load_command();
         RESOURCES = find_resources();
 

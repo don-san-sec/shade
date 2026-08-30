@@ -57,5 +57,7 @@ char *quake_pb_read(void);   // caller frees
 void  quake_pb_write(const char *utf8);
 void  quake_beep(void);
 void  quake_logstr(const char *msg);
+void  quake_register_agent(void);
+void  quake_unregister_agent(void);
 
 #endif

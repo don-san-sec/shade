@@ -237,6 +237,7 @@ extern "C" {
     pub fn quake_pb_write(utf8: *const c_char);
     pub fn quake_beep();
     pub fn quake_logstr(msg: *const c_char);
+    pub fn quake_unregister_agent();
 
     // Only its address is used; libghostty calls it with clang's ABI for
     // the by-value ghostty_action_s parameter.

@@ -32,9 +32,11 @@ $(LIBFIXED):
 build: $(LIBFIXED)
 	cargo build --release
 	rm -rf $(APP)
-	mkdir -p $(APP)/Contents/MacOS $(APP)/Contents/Resources
+	mkdir -p $(APP)/Contents/MacOS $(APP)/Contents/Resources \
+		$(APP)/Contents/Library/LaunchAgents
 	cp target/release/quake $(BIN)
 	cp assets/Info.plist $(APP)/Contents/Info.plist
+	cp assets/dev.quake.agent.plist $(APP)/Contents/Library/LaunchAgents/
 	cp -R $(GHOSTTY)/zig-out/share/ghostty $(APP)/Contents/Resources/ghostty
 	mkdir -p $(APP)/Contents/Resources/terminfo
 	tic -x -o $(APP)/Contents/Resources/terminfo \
@@ -44,20 +46,28 @@ build: $(LIBFIXED)
 run: build
 	$(BIN)
 
+# Install: copy the app and open it once. The app registers its bundled
+# agent with SMAppService (System Settings → Login Items → Quake) and BTM
+# starts it. Also cleans up the legacy raw LaunchAgent from older installs.
 install: build
 	-launchctl bootout gui/$(UID)/dev.quake.app
 	-pkill -x Quake
 	sleep 1
+	rm -f $(HOME)/Library/LaunchAgents/dev.quake.agent.plist
 	rm -rf /Applications/Quake.app
 	cp -R $(APP) /Applications/Quake.app
-	sed 's#@BIN@#/Applications/Quake.app/Contents/MacOS/Quake#' \
-		assets/dev.quake.agent.plist > $(AGENT)
-	launchctl bootstrap gui/$(UID) $(AGENT)
+	# Open once to self-register the login item, then let the agent own it.
+	open /Applications/Quake.app
+	sleep 2
+	-pkill -x Quake
+	sleep 1
+	launchctl kickstart gui/$(UID)/dev.quake.app
 
 uninstall:
-	-launchctl bootout gui/$(UID)/dev.quake.app
+	-/Applications/Quake.app/Contents/MacOS/Quake --unregister-agent
 	-pkill -x Quake
-	rm -f $(AGENT)
+	-launchctl bootout gui/$(UID)/dev.quake.app
+	rm -f $(HOME)/Library/LaunchAgents/dev.quake.agent.plist
 	rm -rf /Applications/Quake.app
 
 clean:
