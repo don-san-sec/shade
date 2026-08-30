@@ -1,12 +1,12 @@
-# quake
+# shade
 
 **A one-key dropdown terminal for macOS.** Press `§` and a fullscreen,
 GPU-rendered terminal drops over whatever you're doing. Press it again and
 it's gone. That's the whole idea.
 
-![quake running tmux](assets/screenshot.png)
+![shade running tmux](assets/screenshot.png)
 
-quake wraps [libghostty](https://ghostty.org) (Metal, GPU-rendered) in a tiny
+shade wraps [libghostty](https://ghostty.org) (Metal, GPU-rendered) in a tiny
 Rust + Objective-C shell — no tabs, no splits, no chrome, no settings pane.
 It borrows Ghostty's own renderer and key handling, so your existing
 `~/.config/ghostty/config` (theme, font, keybinds) just works.
@@ -38,11 +38,11 @@ Prerequisites:
 
 ```sh
 git clone --recurse-submodules <this repo>
-cd quake
+cd shade
 make lib      # one-time: patched zig + ghostty patches + libghostty.a (~20-40 min)
-make          # build Quake.app into build/
+make          # build Shade.app into build/
 make run      # try it without installing
-make install  # /Applications/Quake.app + login item
+make install  # /Applications/Shade.app + login item
 make uninstall
 ```
 
@@ -57,7 +57,7 @@ Everything after is seconds.
 
 ## Config (optional)
 
-`~/.config/quake/config`:
+`~/.config/shade/config`:
 
 ```
 session=work              # run `tmux new-session -A -s work` instead of the shell
@@ -65,7 +65,7 @@ session=work              # run `tmux new-session -A -s work` instead of the she
 command=htop              # any command; replaces the login shell entirely
 ```
 
-Without these, quake spawns the login shell (whose config typically
+Without these, shade spawns the login shell (whose config typically
 attaches tmux).
 
 ## How it works
@@ -85,12 +85,12 @@ attaches tmux).
 
 - Xcode CLT has no `metal`/`metallib` compilers: the build embeds a
   metallib extracted from an official Ghostty.app of the same version
-  (see `QUAKE_METALLIB` in `src/build/SharedDeps.zig` patch).
+  (see `SHADE_METALLIB` in `src/build/SharedDeps.zig` patch).
 - macOS 27 SDK `math.h` hides `INFINITY` under `-std=c++20`+; the vendored
   zig copy in `build/zig` has a one-line libcxx fallback patch.
 - **macOS 26.3 RC / 26.4 beta / 27.0 beta regression**: genuinely
   `borderless` windows can never become key (Apple forums 814798/814875).
-  quake uses a *titled* window with a fully hidden titlebar instead
+  shade uses a *titled* window with a fully hidden titlebar instead
   (titleVisibility hidden, transparent titlebar, hidden traffic lights,
   `fullSizeContentView`). Same look, working keyboard input.
 - On macOS 14+ ("cooperative activation"), self-activation from a hotkey
@@ -98,25 +98,25 @@ attaches tmux).
   and it's async — the panel is (re)made key from
   `NSApplicationDidBecomeActiveNotification`.
 - `RegisterEventHotKey` returns `paramErr` if you pass a NULL out-ref.
-- Debug logging: `QUAKE_DEBUG=1` in the environment → unified log
-  (`log show --predicate 'process == "Quake"'`).
+- Debug logging: `SHADE_DEBUG=1` in the environment → unified log
+  (`log show --predicate 'process == "Shade"'`).
 - `GHOSTTY_RESOURCES_DIR` must be set before `ghostty_init` for
   `theme = ...` to resolve; the compiled terminfo must live at
   `Contents/Resources/terminfo` (sibling of `ghostty/`) because that is
   where libghostty points `TERMINFO`. Without it, tmux exits instantly
   with "missing or unsuitable terminal".
 - Shell integration is disabled for the embedded surface
-  (`~/.config/quake/ghostty-override`, written at startup) — pointless
+  (`~/.config/shade/ghostty-override`, written at startup) — pointless
   for a tmux dropdown and was implicated in early-exit debugging.
 - Key translation detail: macOS delivers `ctrl-[` as a literal ESC
   character. Ghostty's macOS surface re-translates such events without
   control and passes the plain character as text, which the core encoder
-  needs for fixterms CSI u sequences (`ctrl-[` → `ESC [ 91;5 u`). quake
+  needs for fixterms CSI u sequences (`ctrl-[` → `ESC [ 91;5 u`). shade
   mirrors this in `event_text()` in `src/main.rs`.
 
 ## Credits
 
 - [Ghostty](https://ghostty.org) by Mitchell Hashimoto & contributors
   (MIT) — the terminal core, renderer, and the event-translation logic
-  quake borrows.
-- quake itself: see `LICENSE`.
+  shade borrows.
+- shade itself: see `LICENSE`.

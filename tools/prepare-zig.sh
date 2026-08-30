@@ -18,7 +18,7 @@ if [ -z "$ZIG_SRC" ]; then
   exit 1
 fi
 
-if [ -x "$DEST/bin/zig" ] && [ -f "$DEST/.quake-patched" ]; then
+if [ -x "$DEST/bin/zig" ] && [ -f "$DEST/.shade-patched" ]; then
   echo "zig already prepared at $DEST"
   exit 0
 fi
@@ -36,7 +36,7 @@ old = """#    if __has_include_next(<math.h>)
 #    endif
 """
 new = old + """
-// [quake] The macOS 27 SDK math.h no longer defines INFINITY in C++20+
+// [shade] The macOS 27 SDK math.h no longer defines INFINITY in C++20+
 // language modes; libc++ headers (e.g. __random/clamp_to_integral.h,
 // complex) rely on it being present. Provide a fallback.
 #    ifndef INFINITY
@@ -47,5 +47,5 @@ assert s.count(old) == 1, "patch target not found (zig version changed?)"
 open(p, "w").write(s.replace(old, new))
 PYEOF
 
-touch "$DEST/.quake-patched"
+touch "$DEST/.shade-patched"
 echo "prepared $DEST (from $ZIG_SRC, with libcxx INFINITY patch)"

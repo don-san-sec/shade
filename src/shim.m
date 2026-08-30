@@ -1,4 +1,4 @@
-// quake — AppKit/Carbon shim. All logic lives in Rust; this file only
+// shade — AppKit/Carbon shim. All logic lives in Rust; this file only
 // owns the parts that must be Objective-C: the panel, the view that
 // forwards NSEvents, the global hotkey, and the libghostty action
 // trampoline (which must match clang's by-value struct ABI exactly).
@@ -16,37 +16,37 @@
 #include <string.h>
 #include <stdarg.h>
 
-#include "quake.h"
+#include "shade.h"
 #include <ghostty.h>
 
-@class QuakeView;
+@class ShadeView;
 
-static QuakeHooks g_hooks;
+static ShadeHooks g_hooks;
 // Logs via NSLog → unified log. Read with:
-//   log show --last 5m --predicate 'process == "Quake"'
+//   log show --last 5m --predicate 'process == "Shade"'
 static void qlog(const char *fmt, ...) {
     va_list ap; va_start(ap, fmt);
     NSString *msg = [[NSString alloc] initWithFormat:
         [NSString stringWithUTF8String:fmt] arguments:ap];
     va_end(ap);
-    os_log(OS_LOG_DEFAULT, "[quake] %{public}@", msg);
+    os_log(OS_LOG_DEFAULT, "[shade] %{public}@", msg);
 }
 static NSPanel *g_panel = nil;
 static NSRunningApplication *g_prev_app = nil;
-static QuakeView *g_view = nil;
+static ShadeView *g_view = nil;
 static bool g_visible = false;
 
 // "§" on British/ISO keyboards is either the physical section key
 // (kVK_ISO_Section = 0x0A, left of Z) or Option+6 (kVK_ANSI_6 = 0x07).
 // Register both. Carbon hotkeys need no Accessibility permission.
-enum { kQuakeSectionKey = 0x0A, kQuakeSixKey = 0x16 };
+enum { kShadeSectionKey = 0x0A, kShadeSixKey = 0x16 };
 
 #pragma mark - View
 
-@interface QuakeView : NSView
+@interface ShadeView : NSView
 @end
 
-@implementation QuakeView
+@implementation ShadeView
 
 - (BOOL)acceptsFirstResponder { return YES; }
 - (BOOL)canBecomeKeyView { return YES; }
@@ -78,7 +78,7 @@ enum { kQuakeSectionKey = 0x0A, kQuakeSixKey = 0x16 };
 
 - (void)keyDown:(NSEvent *)event {
     if (g_hooks.key_down) {
-        QuakeKey k = {
+        ShadeKey k = {
             .keycode = (uint32_t)event.keyCode,
             .mods = (uint64_t)(event.modifierFlags & 0xFFFF0000ULL),
             .action = event.isARepeat ? 2 : 0,
@@ -90,7 +90,7 @@ enum { kQuakeSectionKey = 0x0A, kQuakeSixKey = 0x16 };
 
 - (void)keyUp:(NSEvent *)event {
     if (g_hooks.key_up) {
-        QuakeKey k = {
+        ShadeKey k = {
             .keycode = (uint32_t)event.keyCode,
             .mods = (uint64_t)(event.modifierFlags & 0xFFFF0000ULL),
             .action = 1,
@@ -111,9 +111,9 @@ enum { kQuakeSectionKey = 0x0A, kQuakeSixKey = 0x16 };
     (void)selector; // swallow
 }
 
-- (QuakeMouse)mouseEvent:(NSEvent *)event kind:(uint8_t)kind {
+- (ShadeMouse)mouseEvent:(NSEvent *)event kind:(uint8_t)kind {
     NSPoint p = [self convertPoint:event.locationInWindow fromView:nil];
-    QuakeMouse m = {
+    ShadeMouse m = {
         .kind = kind,
         .button = (uint8_t)(event.buttonNumber > 3 ? 3 : event.buttonNumber),
         .x = (double)p.x,
@@ -156,7 +156,7 @@ enum { kQuakeSectionKey = 0x0A, kQuakeSixKey = 0x16 };
 
 - (void)scrollWheel:(NSEvent *)event {
     if (!g_hooks.scroll) return;
-    QuakeMouse m = [self mouseEvent:event kind:4];
+    ShadeMouse m = [self mouseEvent:event kind:4];
     m.dx = (double)event.scrollingDeltaX;
     m.dy = (double)event.scrollingDeltaY;
     m.momentum = (uint8_t)event.momentumPhase;
@@ -170,9 +170,9 @@ enum { kQuakeSectionKey = 0x0A, kQuakeSixKey = 0x16 };
 
 // Square corners. macOS 26+ shapes titled windows with rounded corners via
 // private NSThemeFrame getters; the setters are no-ops on 27 and the bottom
-// corner shape is computed once at window init. quake owns the process and
+// corner shape is computed once at window init. shade owns the process and
 // has exactly one window, so we override the getters on NSThemeFrame itself,
-// before any window is created (called from quake_run).
+// before any window is created (called from shade_run).
 static CGFloat zeroRadius(id self, SEL _cmd) { (void)self; (void)_cmd; return 0.0; }
 static CGSize zeroSize(id self, SEL _cmd) { (void)self; (void)_cmd; return CGSizeZero; }
 static BOOL noBool(id self, SEL _cmd) { (void)self; (void)_cmd; return NO; }
@@ -197,10 +197,10 @@ static void swizzleCornerGetters(void) {
     }
 }
 
-@interface QuakePanel : NSPanel
+@interface ShadePanel : NSPanel
 @end
 
-@implementation QuakePanel
+@implementation ShadePanel
 - (BOOL)canBecomeKey { return YES; }
 - (BOOL)canBecomeMain { return NO; }
 
@@ -223,10 +223,10 @@ static void swizzleCornerGetters(void) {
 
 #pragma mark - App delegate
 
-@interface QuakeDelegate : NSObject <NSApplicationDelegate>
+@interface ShadeDelegate : NSObject <NSApplicationDelegate>
 @end
 
-@implementation QuakeDelegate
+@implementation ShadeDelegate
 - (void)applicationDidFinishLaunching:(NSNotification *)n { (void)n; }
 @end
 
@@ -251,17 +251,17 @@ static OSStatus hotkeyHandler(EventHandlerCallRef call, EventRef event, void *us
 
 // Register the bundled launch agent as a proper system login item
 // (Background Task Management / SMAppService). Only when running from the
-// installed location — dev runs (build/Quake.app) must not register.
-void quake_register_agent(void) {
-    SMAppService *svc = [SMAppService agentServiceWithPlistName:@"dev.quake.agent.plist"];
+// installed location — dev runs (build/Shade.app) must not register.
+void shade_register_agent(void) {
+    SMAppService *svc = [SMAppService agentServiceWithPlistName:@"dev.shade.agent.plist"];
     NSError *err = nil;
     if (![svc registerAndReturnError:&err] && err != nil) {
         qlog("agent registration failed: %{public}@", err);
     }
 }
 
-void quake_unregister_agent(void) {
-    SMAppService *svc = [SMAppService agentServiceWithPlistName:@"dev.quake.agent.plist"];
+void shade_unregister_agent(void) {
+    SMAppService *svc = [SMAppService agentServiceWithPlistName:@"dev.shade.agent.plist"];
     dispatch_semaphore_t done = dispatch_semaphore_create(0);
     [svc unregisterWithCompletionHandler:^(NSError *err) {
         if (err != nil) qlog("agent unregister failed: %{public}@", err);
@@ -270,7 +270,7 @@ void quake_unregister_agent(void) {
     dispatch_semaphore_wait(done, dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC));
 }
 
-int quake_run(const QuakeHooks *hooks) {
+int shade_run(const ShadeHooks *hooks) {
     g_hooks = *hooks;
 
     NSApplication *app = [NSApplication sharedApplication];
@@ -279,13 +279,13 @@ int quake_run(const QuakeHooks *hooks) {
     // Square window corners. Must run after NSApplication is initialized
     // (NSThemeFrame is loaded lazily) but before any window is created.
     swizzleCornerGetters();
-    [app setDelegate:[[QuakeDelegate alloc] init]];
+    [app setDelegate:[[ShadeDelegate alloc] init]];
 
     // Minimal main menu — apps without one can be denied key status.
     NSMenu *menubar = [[NSMenu alloc] init];
     NSMenuItem *appItem = [[NSMenuItem alloc] init];
-    NSMenu *appMenu = [[NSMenu alloc] initWithTitle:@"quake"];
-    [appMenu addItemWithTitle:@"Quit quake" action:@selector(terminate:) keyEquivalent:@"q"];
+    NSMenu *appMenu = [[NSMenu alloc] initWithTitle:@"shade"];
+    [appMenu addItemWithTitle:@"Quit shade" action:@selector(terminate:) keyEquivalent:@"q"];
     [appItem setSubmenu:appMenu];
     [menubar addItem:appItem];
     NSMenuItem *editItem = [[NSMenuItem alloc] init];
@@ -310,13 +310,13 @@ int quake_run(const QuakeHooks *hooks) {
     // Global hotkey: § with no modifiers.
     EventTypeSpec spec = { kEventClassKeyboard, kEventHotKeyPressed };
     InstallEventHandler(GetEventDispatcherTarget(), hotkeyHandler, 1, &spec, NULL, NULL);
-    EventHotKeyID keyID1 = { .signature = 'QAKE', .id = 1 };
-    EventHotKeyID keyID2 = { .signature = 'QAKE', .id = 2 };
+    EventHotKeyID keyID1 = { .signature = 'SHAD', .id = 1 };
+    EventHotKeyID keyID2 = { .signature = 'SHAD', .id = 2 };
     static EventHotKeyRef ref1 = NULL, ref2 = NULL;
     // Option+6 types "§" on the British layout.
-    OSStatus r1 = RegisterEventHotKey(kQuakeSectionKey, 0, keyID1,
+    OSStatus r1 = RegisterEventHotKey(kShadeSectionKey, 0, keyID1,
                         GetEventDispatcherTarget(), 0, &ref1);
-    OSStatus r2 = RegisterEventHotKey(kQuakeSixKey, optionKey, keyID2,
+    OSStatus r2 = RegisterEventHotKey(kShadeSixKey, optionKey, keyID2,
                         GetEventDispatcherTarget(), 0, &ref2);
     if (r1 != noErr || r2 != noErr) {
         qlog("hotkey registration failed: section=%d opt6=%d", (int)r1, (int)r2);
@@ -334,7 +334,7 @@ static NSScreen *screenForMouse(void) {
     return [NSScreen mainScreen];
 }
 
-void quake_show(void) {
+void shade_show(void) {
     NSRunningApplication *front = [[NSWorkspace sharedWorkspace] frontmostApplication];
     if (front && ![front isEqual:[NSRunningApplication currentApplication]]) {
         g_prev_app = front;
@@ -344,7 +344,7 @@ void quake_show(void) {
         // macOS 27 beta regression: genuinely borderless windows can never
         // become key (Apple forums 814798/814875; also broken in 26.3 RC).
         // Workaround: titled window with a fully hidden titlebar.
-        g_panel = [[QuakePanel alloc] initWithContentRect:frame
+        g_panel = [[ShadePanel alloc] initWithContentRect:frame
             styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskFullSizeContentView
             backing:NSBackingStoreBuffered defer:NO];
         g_panel.titleVisibility = NSWindowTitleHidden;
@@ -363,10 +363,10 @@ void quake_show(void) {
         [g_panel setBackgroundColor:[NSColor blackColor]];
         [g_panel setHasShadow:NO];
         [g_panel setAcceptsMouseMovedEvents:YES];
-        [g_panel setTitle:@"quake"];
+        [g_panel setTitle:@"shade"];
     }
     // Fresh view per show so libghostty attaches to a clean layer.
-    g_view = [[QuakeView alloc] initWithFrame:frame];
+    g_view = [[ShadeView alloc] initWithFrame:frame];
     [g_view setWantsLayer:YES];
     [g_panel setContentView:g_view];
     [g_panel setInitialFirstResponder:g_view];
@@ -386,7 +386,7 @@ void quake_show(void) {
     g_visible = YES;
 }
 
-void quake_hide(void) {
+void shade_hide(void) {
     if (g_panel != nil) [g_panel orderOut:nil];
     g_view = nil;
     g_visible = NO;
@@ -400,17 +400,17 @@ void quake_hide(void) {
     }
 }
 
-bool quake_visible(void) { return g_visible; }
+bool shade_visible(void) { return g_visible; }
 
-void *quake_content_view(void) { return (__bridge void *)g_view; }
+void *shade_content_view(void) { return (__bridge void *)g_view; }
 
 // Height of the notch/menu-bar band on the panel's screen (0 if none).
-double quake_top_inset(void) {
+double shade_top_inset(void) {
     NSScreen *screen = g_panel != nil ? g_panel.screen : screenForMouse();
     return (double)screen.safeAreaInsets.top;
 }
 
-const char *quake_event_chars(const void *event, uint64_t mods) {
+const char *shade_event_chars(const void *event, uint64_t mods) {
     NSEvent *e = (__bridge NSEvent *)event;
     // Only the four translation-relevant flags are applied.
     const uint64_t keep = NSEventModifierFlagShift | NSEventModifierFlagControl |
@@ -420,7 +420,7 @@ const char *quake_event_chars(const void *event, uint64_t mods) {
     return s == nil ? NULL : [s UTF8String];
 }
 
-char *quake_pb_read(void) {
+char *shade_pb_read(void) {
     NSString *s = [[NSPasteboard generalPasteboard]
         stringForType:NSPasteboardTypeString];
     if (s == nil) return NULL;
@@ -428,7 +428,7 @@ char *quake_pb_read(void) {
     return utf8 == NULL ? NULL : strdup(utf8);
 }
 
-void quake_pb_write(const char *utf8) {
+void shade_pb_write(const char *utf8) {
     NSString *s = [NSString stringWithUTF8String:utf8];
     if (s == nil) return;
     NSPasteboard *pb = [NSPasteboard generalPasteboard];
@@ -436,19 +436,19 @@ void quake_pb_write(const char *utf8) {
     [pb setString:s forType:NSPasteboardTypeString];
 }
 
-void quake_beep(void) { NSBeep(); }
+void shade_beep(void) { NSBeep(); }
 
-void quake_logstr(const char *msg) {
-    os_log(OS_LOG_DEFAULT, "[quake] %{public}s", msg);
+void shade_logstr(const char *msg) {
+    os_log(OS_LOG_DEFAULT, "[shade] %{public}s", msg);
 }
 
-void quake_register_agent(void);
-void quake_unregister_agent(void);
+void shade_register_agent(void);
+void shade_unregister_agent(void);
 
 // libghostty calls action callbacks with a by-value struct; clang's ABI
 // for that must be matched exactly, so it is handled here and simplified
 // before re-entering Rust.
-bool quake_action_cb(void *app, ghostty_target_s target, ghostty_action_s action) {
+bool shade_action_cb(void *app, ghostty_target_s target, ghostty_action_s action) {
     (void)target;
     if (!g_hooks.action) return false;
     return g_hooks.action(app, (int32_t)action.tag,

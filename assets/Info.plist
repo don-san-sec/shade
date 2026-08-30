@@ -5,15 +5,15 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleExecutable</key>
-	<string>Quake</string>
+	<string>Shade</string>
 	<key>CFBundleIdentifier</key>
-	<string>dev.quake.app</string>
+	<string>dev.shade.app</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>quake</string>
+	<string>shade</string>
 	<key>CFBundleDisplayName</key>
-	<string>quake</string>
+	<string>shade</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

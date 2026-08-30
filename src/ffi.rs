@@ -95,7 +95,7 @@ pub struct ghostty_clipboard_content_s {
 
 /// Runtime callbacks are stored as raw pointer-sized values so that the
 /// by-value `ghostty_action_s` callback can point at the ObjC shim's
-/// trampoline (quake_action_cb) without Rust needing that struct's ABI.
+/// trampoline (shade_action_cb) without Rust needing that struct's ABI.
 #[repr(C)]
 pub struct ghostty_runtime_config_s {
     pub userdata: *mut c_void,
@@ -193,10 +193,10 @@ pub fn main_queue() -> *mut c_void {
 }
 
 // ------------------------------------------------------------------ shim
-// Mirrors src/quake.h.
+// Mirrors src/shade.h.
 
 #[repr(C)]
-pub struct QuakeKey {
+pub struct ShadeKey {
     pub keycode: u32,
     pub mods: u64,
     pub action: u8,
@@ -204,7 +204,7 @@ pub struct QuakeKey {
 }
 
 #[repr(C)]
-pub struct QuakeMouse {
+pub struct ShadeMouse {
     pub kind: u8,
     pub button: u8,
     pub x: f64,
@@ -217,11 +217,11 @@ pub struct QuakeMouse {
 }
 
 #[repr(C)]
-pub struct QuakeHooks {
-    pub key_down: Option<unsafe extern "C" fn(QuakeKey)>,
-    pub key_up: Option<unsafe extern "C" fn(QuakeKey)>,
-    pub mouse: Option<unsafe extern "C" fn(QuakeMouse)>,
-    pub scroll: Option<unsafe extern "C" fn(QuakeMouse)>,
+pub struct ShadeHooks {
+    pub key_down: Option<unsafe extern "C" fn(ShadeKey)>,
+    pub key_up: Option<unsafe extern "C" fn(ShadeKey)>,
+    pub mouse: Option<unsafe extern "C" fn(ShadeMouse)>,
+    pub scroll: Option<unsafe extern "C" fn(ShadeMouse)>,
     pub ime: Option<unsafe extern "C" fn(*const c_char)>,
     pub view_ready: Option<unsafe extern "C" fn(f64, f64, f64)>,
     pub toggle: Option<unsafe extern "C" fn()>,
@@ -229,20 +229,20 @@ pub struct QuakeHooks {
 }
 
 extern "C" {
-    pub fn quake_run(hooks: *const QuakeHooks) -> c_int;
-    pub fn quake_show();
-    pub fn quake_hide();
-    pub fn quake_visible() -> bool;
-    pub fn quake_content_view() -> *mut c_void;
-    pub fn quake_event_chars(event: *const c_void, mods: u64) -> *const c_char;
-    pub fn quake_pb_read() -> *mut c_char;
-    pub fn quake_pb_write(utf8: *const c_char);
-    pub fn quake_beep();
-    pub fn quake_logstr(msg: *const c_char);
-    pub fn quake_unregister_agent();
-    pub fn quake_top_inset() -> f64;
+    pub fn shade_run(hooks: *const ShadeHooks) -> c_int;
+    pub fn shade_show();
+    pub fn shade_hide();
+    pub fn shade_visible() -> bool;
+    pub fn shade_content_view() -> *mut c_void;
+    pub fn shade_event_chars(event: *const c_void, mods: u64) -> *const c_char;
+    pub fn shade_pb_read() -> *mut c_char;
+    pub fn shade_pb_write(utf8: *const c_char);
+    pub fn shade_beep();
+    pub fn shade_logstr(msg: *const c_char);
+    pub fn shade_unregister_agent();
+    pub fn shade_top_inset() -> f64;
 
     // Only its address is used; libghostty calls it with clang's ABI for
     // the by-value ghostty_action_s parameter.
-    pub fn quake_action_cb(app: *mut c_void, a: u64, b: u64) -> bool;
+    pub fn shade_action_cb(app: *mut c_void, a: u64, b: u64) -> bool;
 }

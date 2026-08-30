@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>Label</key>
-	<string>dev.quake.app</string>
+	<string>dev.shade.app</string>
 	<key>ProgramArguments</key>
 	<array>
 		<string>@BIN@</string>

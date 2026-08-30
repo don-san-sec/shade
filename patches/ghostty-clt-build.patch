@@ -6,7 +6,7 @@ index f9d861b..a8ebb31 100644
  
      // macOS only artifacts. These will error if they're initialized for
      // other targets.
-+    // [quake] patch: initializing the xcframework eagerly configures iOS
++    // [shade] patch: initializing the xcframework eagerly configures iOS
 +    // targets and requires a full Xcode install (CLT-only hosts crash with
 +    // DarwinSdkNotFound). Only do it when an Xcode artifact is requested;
 +    // otherwise install the plain static library and resources.
@@ -79,7 +79,7 @@ index f9d861b..a8ebb31 100644
          // On macOS we can run the macOS app. For "run" we always force
          // a native-only build so that we can run as quickly as possible.
 -        if (config.target.result.os.tag.isDarwin()) {
-+        // [quake] patch: gated behind emit_macos_app so CLT-only hosts can
++        // [shade] patch: gated behind emit_macos_app so CLT-only hosts can
 +        // build the plain static library without iOS SDK detection.
 +        if (config.target.result.os.tag.isDarwin() and config.emit_macos_app) {
              const xcframework_native = try buildpkg.GhosttyXCFramework.init(
@@ -98,11 +98,11 @@ index 9276c99..92d5740 100644
 -        step.root_module.addAnonymousImport("ghostty_metallib", .{
 -            .root_source_file = metallib.output,
 -        });
-+        // [quake] CLT-only hosts have no `metal` compiler, so the build
-+        // cannot produce the metallib. QUAKE_METALLIB points at a prebuilt
++        // [shade] CLT-only hosts have no `metal` compiler, so the build
++        // cannot produce the metallib. SHADE_METALLIB points at a prebuilt
 +        // metallib (e.g. extracted from an official Ghostty.app of the same
 +        // version) which gets embedded instead.
-+        const prebuilt = std.process.getEnvVarOwned(b.allocator, "QUAKE_METALLIB") catch null;
++        const prebuilt = std.process.getEnvVarOwned(b.allocator, "SHADE_METALLIB") catch null;
 +        if (prebuilt) |path| {
 +            step.root_module.addAnonymousImport("ghostty_metallib", .{
 +                .root_source_file = .{ .cwd_relative = path },

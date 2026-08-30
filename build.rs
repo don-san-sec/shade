@@ -9,7 +9,7 @@ fn main() {
         .flag("-fobjc-arc")
         .include("src")
         .include("vendor/ghostty/include")
-        .compile("quake_shim");
+        .compile("shade_shim");
 
     // Link libghostty (rebuilt static archive; see tools/fix-lib.sh).
     println!("cargo:rustc-link-search=native={}/build", manifest);
@@ -37,7 +37,7 @@ fn main() {
     println!("cargo:rustc-link-lib=dylib=dispatch");
 
     println!("cargo:rerun-if-changed=src/shim.m");
-    println!("cargo:rerun-if-changed=src/quake.h");
+    println!("cargo:rerun-if-changed=src/shade.h");
     println!("cargo:rerun-if-changed=src/main.rs");
     println!("cargo:rerun-if-changed=src/ffi.rs");
 }

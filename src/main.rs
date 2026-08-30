@@ -1,4 +1,4 @@
-//! quake — a §-toggle, fullscreen, libghostty-powered tmux drop-down.
+//! shade — a §-toggle, fullscreen, libghostty-powered tmux drop-down.
 //!
 //! Rust owns the logic: libghostty lifecycle, event translation, toggle
 //! behaviour. AppKit/Carbon lives in src/shim.m.
@@ -30,7 +30,7 @@ static mut SURFACE_ENV: Vec<ghostty_env_var_s> = Vec::new();
 
 // ------------------------------------------------------------------ config
 
-/// Reads ~/.config/quake/config: optional `command=...` line.
+/// Reads ~/.config/shade/config: optional `command=...` line.
 /// Default: no command — the login shell runs, and the user's shell config
 /// auto-execs `tmux new-session -A -s main` (their setup). Running tmux
 /// ourselves on top would nest and instantly exit.
@@ -56,14 +56,14 @@ fn load_command() -> Option<CString> {
 }
 
 fn home_config_dir() -> Option<PathBuf> {
-    std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config").join("quake"))
+    std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config").join("shade"))
 }
 
 /// Ghostty runtime resources (terminfo, shell integration) are shipped
 /// inside the app bundle when installed.
 fn find_resources() -> Option<CString> {
     let exe = std::env::current_exe().ok()?;
-    // .../Quake.app/Contents/MacOS/quake
+    // .../Shade.app/Contents/MacOS/shade
     let resources = exe.parent()?.parent()?.join("Resources").join("ghostty");
     if resources.is_dir() {
         return Some(CString::new(resources.to_str()?).unwrap());
@@ -75,7 +75,7 @@ fn find_resources() -> Option<CString> {
 
 fn log_str(s: &str) {
     if let Ok(c) = CString::new(s) {
-        unsafe { quake_logstr(c.as_ptr()) };
+        unsafe { shade_logstr(c.as_ptr()) };
     }
 }
 
@@ -100,7 +100,7 @@ struct CompleteCtx {
 extern "C" fn complete_thunk(ctx: *mut c_void) {
     let ctx = unsafe { Box::from_raw(ctx as *mut CompleteCtx) };
     unsafe {
-        let text = quake_pb_read();
+        let text = shade_pb_read();
         ghostty_surface_complete_clipboard_request(
             ctx.surface,
             text,
@@ -145,7 +145,7 @@ extern "C" fn write_clipboard_cb(
         }
         let data = (*content).data;
         if !data.is_null() {
-            quake_pb_write(data);
+            shade_pb_write(data);
         }
     }
 }
@@ -161,7 +161,7 @@ extern "C" fn action_cb(_app: *const c_void, tag: i32, _exit_code: i32) -> bool 
             true
         }
         t if t == GHOSTTY_ACTION_RING_BELL => {
-            unsafe { quake_beep() };
+            unsafe { shade_beep() };
             true
         }
         _ => false,
@@ -235,8 +235,8 @@ const NS_MOD_CONTROL: u64 = 1 << 18;
 /// and ctrl+shift+letter) are fixterms CSI u sequences built from the text
 /// (`ESC [ 91;5 u`), not C0 bytes derivable from the keycode; with no text
 /// the legacy encoder emits nothing at all. PUA function keys are dropped.
-unsafe fn event_text(k: &QuakeKey, translation_flags: u64) -> Option<CString> {
-    let chars = quake_event_chars(k.event, translation_flags);
+unsafe fn event_text(k: &ShadeKey, translation_flags: u64) -> Option<CString> {
+    let chars = shade_event_chars(k.event, translation_flags);
     if chars.is_null() {
         return None;
     }
@@ -244,7 +244,7 @@ unsafe fn event_text(k: &QuakeKey, translation_flags: u64) -> Option<CString> {
     let mut it = s.chars();
     let cp = it.next()? as u32;
     if cp < 0x20 && it.next().is_none() {
-        let no_ctrl = quake_event_chars(k.event, k.mods & !NS_MOD_CONTROL);
+        let no_ctrl = shade_event_chars(k.event, k.mods & !NS_MOD_CONTROL);
         if no_ctrl.is_null() {
             return None;
         }
@@ -256,7 +256,7 @@ unsafe fn event_text(k: &QuakeKey, translation_flags: u64) -> Option<CString> {
     CString::new(s).ok()
 }
 
-unsafe extern "C" fn key_down_hook(k: QuakeKey) {
+unsafe extern "C" fn key_down_hook(k: ShadeKey) {
     let surface = SURFACE.load(Ordering::Relaxed);
     if surface.is_null() {
         return;
@@ -282,7 +282,7 @@ unsafe extern "C" fn key_down_hook(k: QuakeKey) {
     // unshifted codepoint: characters with no modifiers
     let mut unshifted: u32 = 0;
     if !k.event.is_null() {
-        let raw = quake_event_chars(k.event, 0);
+        let raw = shade_event_chars(k.event, 0);
         if !raw.is_null() {
             if let Some(c) = CStr::from_ptr(raw).to_string_lossy().chars().next() {
                 unshifted = c as u32;
@@ -303,7 +303,7 @@ unsafe extern "C" fn key_down_hook(k: QuakeKey) {
     drop(owned_text);
 }
 
-unsafe extern "C" fn key_up_hook(k: QuakeKey) {
+unsafe extern "C" fn key_up_hook(k: ShadeKey) {
     let surface = SURFACE.load(Ordering::Relaxed);
     if surface.is_null() {
         return;
@@ -330,7 +330,7 @@ fn mouse_button_enum(button: u8) -> c_int {
     }
 }
 
-unsafe extern "C" fn mouse_hook(m: QuakeMouse) {
+unsafe extern "C" fn mouse_hook(m: ShadeMouse) {
     let surface = SURFACE.load(Ordering::Relaxed);
     if surface.is_null() {
         return;
@@ -358,7 +358,7 @@ unsafe extern "C" fn mouse_hook(m: QuakeMouse) {
     }
 }
 
-unsafe extern "C" fn scroll_hook(m: QuakeMouse) {
+unsafe extern "C" fn scroll_hook(m: ShadeMouse) {
     let surface = SURFACE.load(Ordering::Relaxed);
     if surface.is_null() {
         return;
@@ -409,10 +409,10 @@ extern "C" fn toggle_hook() {
 
 fn show() {
     unsafe {
-        quake_show();
-        let view = quake_content_view();
+        shade_show();
+        let view = shade_content_view();
         if view.is_null() {
-            eprintln!("quake: no content view");
+            eprintln!("shade: no content view");
             return;
         }
         let app = APP.load(Ordering::Relaxed);
@@ -434,8 +434,8 @@ fn show() {
 
         let surface = ghostty_surface_new(app, &sc);
         if surface.is_null() {
-            eprintln!("quake: ghostty_surface_new failed");
-            quake_hide();
+            eprintln!("shade: ghostty_surface_new failed");
+            shade_hide();
             return;
         }
         SURFACE.store(surface, Ordering::Relaxed);
@@ -451,7 +451,7 @@ fn show() {
 fn hide() {
     let surface = SURFACE.swap(ptr::null_mut(), Ordering::Relaxed);
     unsafe {
-        quake_hide();
+        shade_hide();
         if !surface.is_null() {
             ghostty_surface_free(surface);
         }
@@ -463,9 +463,9 @@ fn hide() {
 
 fn main() {
     unsafe {
-        // `quake --unregister-agent`: remove the login item and exit.
+        // `shade --unregister-agent`: remove the login item and exit.
         if std::env::args().any(|a| a == "--unregister-agent") {
-            quake_unregister_agent();
+            shade_unregister_agent();
             return;
         }
 
@@ -499,14 +499,14 @@ fn main() {
         }
 
         if ghostty_init(0, ptr::null_mut()) != 0 {
-            eprintln!("quake: ghostty_init failed");
+            eprintln!("shade: ghostty_init failed");
             std::process::exit(1);
         }
 
         let cfg = ghostty_config_new();
         // Loads ~/.config/ghostty/config — the user's theme, font, etc.
         ghostty_config_load_default_files(cfg);
-        // quake overrides: our panel spawns the login shell whose own
+        // shade overrides: our panel spawns the login shell whose own
         // config execs tmux; ghostty shell integration in this embedded
         // setup breaks the spawn, so disable it.
         if let Some(dir) = home_config_dir() {
@@ -530,7 +530,7 @@ fn main() {
             userdata: ptr::null_mut(),
             supports_selection_clipboard: false,
             wakeup_cb: wakeup_cb as *const () as usize as *mut c_void,
-            action_cb: quake_action_cb as *const () as usize as *mut c_void,
+            action_cb: shade_action_cb as *const () as usize as *mut c_void,
             read_clipboard_cb: read_clipboard_cb as *const () as usize as *mut c_void,
             confirm_read_clipboard_cb: confirm_read_clipboard_cb as *const () as usize as *mut c_void,
             write_clipboard_cb: write_clipboard_cb as *const () as usize as *mut c_void,
@@ -539,12 +539,12 @@ fn main() {
 
         let app = ghostty_app_new(&runtime, cfg);
         if app.is_null() {
-            eprintln!("quake: ghostty_app_new failed");
+            eprintln!("shade: ghostty_app_new failed");
             std::process::exit(1);
         }
         APP.store(app, Ordering::Relaxed);
 
-        let hooks = QuakeHooks {
+        let hooks = ShadeHooks {
             key_down: Some(key_down_hook),
             key_up: Some(key_up_hook),
             mouse: Some(mouse_hook),
@@ -554,6 +554,6 @@ fn main() {
             toggle: Some(toggle_hook),
             action: Some(action_cb),
         };
-        quake_run(&hooks);
+        shade_run(&hooks);
     }
 }
