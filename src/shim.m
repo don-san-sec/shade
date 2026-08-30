@@ -57,6 +57,25 @@ enum { kShadeSectionKey = 0x0A, kShadeGraveKey = 0x32 };
 - (BOOL)canBecomeKeyView { return YES; }
 - (BOOL)isOpaque { return YES; }
 
+// When shade is frontmost, Cmd+key events go through the menu's key-equivalent
+// handling and the Carbon global hotkey may be preempted — so catch the toggle
+// here too. Returns YES (consumed) so it never reaches the terminal.
+- (BOOL)performKeyEquivalent:(NSEvent *)event {
+    if (event.type == NSEventTypeKeyDown &&
+        (event.modifierFlags & NSEventModifierFlagCommand) &&
+        !(event.modifierFlags & (NSEventModifierFlagShift |
+                                 NSEventModifierFlagOption |
+                                 NSEventModifierFlagControl))) {
+        const BOOL iso = KBGetLayoutType(LMGetKbdType()) == (OSType)kKeyboardISO;
+        const uint16_t want = iso ? kShadeSectionKey : kShadeGraveKey;
+        if (event.keyCode == want) {
+            if (g_hooks.toggle) g_hooks.toggle();
+            return YES;
+        }
+    }
+    return [super performKeyEquivalent:event];
+}
+
 - (void)resetCursorRects {
     [self addCursorRect:self.bounds cursor:[NSCursor IBeamCursor]];
 }
@@ -287,17 +306,20 @@ int shade_run(const ShadeHooks *hooks) {
     [app setDelegate:[[ShadeDelegate alloc] init]];
 
     // Minimal main menu — apps without one can be denied key status.
+    // Items deliberately have NO keyEquivalents: when shade is frontmost the
+    // menu bar captures Cmd+key equivalents before the terminal sees them, so
+    // Cmd+Q would quit the app and Cmd+C/V/A would never reach the shell.
     NSMenu *menubar = [[NSMenu alloc] init];
     NSMenuItem *appItem = [[NSMenuItem alloc] init];
     NSMenu *appMenu = [[NSMenu alloc] initWithTitle:@"shade"];
-    [appMenu addItemWithTitle:@"Quit shade" action:@selector(terminate:) keyEquivalent:@"q"];
+    [appMenu addItemWithTitle:@"Quit shade" action:@selector(terminate:) keyEquivalent:@""];
     [appItem setSubmenu:appMenu];
     [menubar addItem:appItem];
     NSMenuItem *editItem = [[NSMenuItem alloc] init];
     NSMenu *editMenu = [[NSMenu alloc] initWithTitle:@"Edit"];
-    [editMenu addItemWithTitle:@"Copy" action:@selector(copy:) keyEquivalent:@"c"];
-    [editMenu addItemWithTitle:@"Paste" action:@selector(paste:) keyEquivalent:@"v"];
-    [editMenu addItemWithTitle:@"Select All" action:@selector(selectAll:) keyEquivalent:@"a"];
+    [editMenu addItemWithTitle:@"Copy" action:@selector(copy:) keyEquivalent:@""];
+    [editMenu addItemWithTitle:@"Paste" action:@selector(paste:) keyEquivalent:@""];
+    [editMenu addItemWithTitle:@"Select All" action:@selector(selectAll:) keyEquivalent:@""];
     [editItem setSubmenu:editMenu];
     [menubar addItem:editItem];
     [app setMainMenu:menubar];

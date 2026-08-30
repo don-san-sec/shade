@@ -9,7 +9,7 @@ use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int, c_void};
 use std::path::PathBuf;
 use std::ptr;
-use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU64, Ordering};
 
 use ffi::*;
 
@@ -440,7 +440,21 @@ unsafe extern "C" fn view_ready_hook(w: f64, h: f64, scale: f64) {
     ghostty_surface_set_size(surface, w as u32, h as u32);
 }
 
+// The toggle can be reached via two paths for one physical press — the Carbon
+// global hotkey, and performKeyEquivalent when shade is frontmost. If both
+// fire, they'd cancel out (show then instantly hide), so collapse a double
+// trigger within a short window.
+static LAST_TOGGLE: AtomicU64 = AtomicU64::new(0);
+
 extern "C" fn toggle_hook() {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    let last = LAST_TOGGLE.swap(now, Ordering::Relaxed);
+    if now.saturating_sub(last) < 300 {
+        return; // duplicate trigger from the second path
+    }
     if HIDDEN.load(Ordering::Relaxed) {
         show();
     } else {
