@@ -1,6 +1,6 @@
 cask "shade" do
-  version "0.2.1"
-  sha256 "0e2e2f3f8d6cc9c2a5b99f4f68ae09c97596cbecdacd58771113008e8b63a546"
+  version "0.2.2"
+  sha256 "100fcf62954096d8a7e1e7a817d393d3b7a8762905f5f237bf61a36773a746d9"
 
   url "https://github.com/don-san-sec/shade/releases/download/v#{version}/Shade-#{version}-macos-arm64.zip"
   name "Shade"
