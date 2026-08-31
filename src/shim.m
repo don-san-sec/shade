@@ -69,14 +69,17 @@ enum { kShadeSectionKey = 0x0A, kShadeGraveKey = 0x32, kShadeQKey = 0x0C };
         const BOOL iso = KBGetLayoutType(LMGetKbdType()) == (OSType)kKeyboardISO;
         const uint16_t want = iso ? kShadeSectionKey : kShadeGraveKey;
         if (event.keyCode == want) {
-            if (g_hooks.toggle) g_hooks.toggle();
+            // Auto-repeat of a held toggle must not machine-gun show/hide.
+            if (!event.isARepeat && g_hooks.toggle)
+                g_hooks.toggle(event.timestamp);
             return YES;
         }
         // Cmd+Q: hide the panel (dismiss the overlay), never quit the app and
         // never kill the shell — the tmux session is meant to persist. To end
         // the session deliberately, use Ctrl+D. Only fires when frontmost.
         if (event.keyCode == kShadeQKey) {
-            if (g_hooks.toggle) g_hooks.toggle();
+            if (!event.isARepeat && g_hooks.toggle)
+                g_hooks.toggle(event.timestamp);
             return YES;
         }
     }
@@ -276,7 +279,10 @@ static OSStatus hotkeyHandler(EventHandlerCallRef call, EventRef event, void *us
         // main thread inside live event processing, which is what lets
         // macOS grant our accessory app focus (user-initiated activation).
         if (keyID.id == 1 && g_hooks.toggle) {
-            g_hooks.toggle();
+            // GetEventTime and NSEvent.timestamp share the seconds-since-boot
+            // epoch, so the Rust side can dedupe this delivery against the
+            // performKeyEquivalent delivery of the same physical press.
+            g_hooks.toggle(GetEventTime(event));
         }
     }
     return noErr;

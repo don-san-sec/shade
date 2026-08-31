@@ -224,7 +224,7 @@ pub struct ShadeHooks {
     pub scroll: Option<unsafe extern "C" fn(ShadeMouse)>,
     pub ime: Option<unsafe extern "C" fn(*const c_char)>,
     pub view_ready: Option<unsafe extern "C" fn(f64, f64, f64)>,
-    pub toggle: Option<unsafe extern "C" fn()>,
+    pub toggle: Option<unsafe extern "C" fn(f64)>,
     pub action: Option<unsafe extern "C" fn(*const c_void, i32, i32) -> bool>,
 }
 

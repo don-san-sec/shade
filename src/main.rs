@@ -446,18 +446,21 @@ unsafe extern "C" fn view_ready_hook(w: f64, h: f64, scale: f64) {
 
 // The toggle can be reached via two paths for one physical press — the Carbon
 // global hotkey, and performKeyEquivalent when shade is frontmost. If both
-// fire, they'd cancel out (show then instantly hide), so collapse a double
-// trigger within a short window.
-static LAST_TOGGLE: AtomicU64 = AtomicU64::new(0);
+// fire, they'd cancel out (show then instantly hide). Both deliveries carry
+// the originating event's stamp (seconds since boot; Carbon's GetEventTime
+// and NSEvent.timestamp share that epoch), so dedupe on the stamp: a
+// duplicate arrives within the same event-loop turn, a few ms apart at most,
+// while a real second press is tens of ms apart even at the very fastest.
+// A wall-clock window large enough to be safe (the old 300 ms) also ate
+// rapid legitimate presses, which read as the toggle ignoring any keypress
+// within 0.3 s of the previous one.
+static LAST_TOGGLE_STAMP: AtomicU64 = AtomicU64::new(0); // f64 bit pattern
 
-extern "C" fn toggle_hook() {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0);
-    let last = LAST_TOGGLE.swap(now, Ordering::Relaxed);
-    if now.saturating_sub(last) < 300 {
-        return; // duplicate trigger from the second path
+extern "C" fn toggle_hook(stamp: f64) {
+    // f64 has no atomic — store the bit pattern.
+    let last = f64::from_bits(LAST_TOGGLE_STAMP.swap(stamp.to_bits(), Ordering::Relaxed));
+    if (stamp - last).abs() < 0.05 {
+        return; // duplicate delivery of the same press from the second path
     }
     if HIDDEN.load(Ordering::Relaxed) {
         show();

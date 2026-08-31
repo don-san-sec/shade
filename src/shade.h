@@ -31,7 +31,10 @@ typedef struct {
     void (*scroll)(ShadeMouse);
     void (*ime)(const char *utf8);
     void (*view_ready)(double w, double h, double scale);
-    void (*toggle)(void);   // global hotkey or Esc
+    // Global hotkey or key equivalent. `stamp` is the triggering event's
+    // time in seconds since boot (NSEvent.timestamp / GetEventTime share
+    // that epoch) — used to dedupe the two delivery paths of one press.
+    void (*toggle)(double stamp);
     // Simplified libghostty action callback: (app, tag, child_exit_code).
     bool (*action)(const void *app, int32_t tag, int32_t exit_code);
 } ShadeHooks;
