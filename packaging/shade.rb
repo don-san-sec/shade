@@ -19,9 +19,13 @@ cask "shade" do
                    args: ["-dr", "com.apple.quarantine", "#{appdir}/Shade.app"]
   end
 
+  # NOTE: /Applications/Shade.app must NOT be in uninstall delete: — the
+  # app stanza above already owns it. Listing it in both places makes
+  # `brew upgrade` fail deterministically: the uninstall stanza deletes the
+  # app before Homebrew backs it up to staging ("It seems the App source
+  # ... is not there").
   uninstall launchctl: "dev.shade.app",
             delete:    [
-              "/Applications/Shade.app",
               "~/Library/LaunchAgents/dev.shade.agent.plist",
             ]
 
