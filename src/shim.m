@@ -375,6 +375,19 @@ static NSScreen *screenForMouse(void) {
     return [NSScreen mainScreen];
 }
 
+// macOS 26/27 liquid glass: the hidden-titlebar titlebar container still
+// draws glass artifacts (a light band) at the top of the panel. Ghostty's
+// hidden style hides the container outright ("nuke it from orbit") — same.
+static void hide_titlebar_container(NSWindow *win) {
+    NSView *themeFrame = win.contentView.superview;
+    if (themeFrame == nil) return;
+    for (NSView *v in themeFrame.subviews) {
+        if ([NSStringFromClass([v class]) isEqualToString:@"NSTitlebarContainerView"]) {
+            [v setHidden:YES];
+        }
+    }
+}
+
 void shade_show(void) {
     NSRunningApplication *front = [[NSWorkspace sharedWorkspace] frontmostApplication];
     if (front && ![front isEqual:[NSRunningApplication currentApplication]]) {
@@ -390,6 +403,10 @@ void shade_show(void) {
             backing:NSBackingStoreBuffered defer:NO];
         g_panel.titleVisibility = NSWindowTitleHidden;
         g_panel.titlebarAppearsTransparent = YES;
+        // AppKit draws the automatic titlebar separator hairline over
+        // full-size content in titled windows (light mode: a white line
+        // across the top). Ghostty nulls it for fullscreen the same way.
+        g_panel.titlebarSeparatorStyle = NSTitlebarSeparatorStyleNone;
         g_panel.movableByWindowBackground = NO;
         g_panel.movable = NO;
         [[g_panel standardWindowButton:NSWindowCloseButton] setHidden:YES];
@@ -405,6 +422,7 @@ void shade_show(void) {
         [g_panel setHasShadow:NO];
         [g_panel setAcceptsMouseMovedEvents:YES];
         [g_panel setTitle:@"shade"];
+        hide_titlebar_container(g_panel);
     }
     // Fresh view per show so libghostty attaches to a clean layer.
     g_view = [[ShadeView alloc] initWithFrame:frame];
@@ -412,6 +430,7 @@ void shade_show(void) {
     [g_panel setContentView:g_view];
     [g_panel setInitialFirstResponder:g_view];
     [g_panel setFrame:frame display:YES];
+    hide_titlebar_container(g_panel);
     // macOS 14+ restricts NSApplication self-activation ("cooperative
     // activation"). NSRunningApplication and the Process Manager go through
     // a different path that still honors user-initiated hotkey activation.
