@@ -37,20 +37,28 @@ static mut SURFACE_ENV: Vec<ghostty_env_var_s> = Vec::new();
 fn load_command() -> Option<CString> {
     if let Some(dir) = home_config_dir() {
         let path = dir.join("config");
-        if let Ok(text) = std::fs::read_to_string(&path) {
-            for line in text.lines() {
-                let line = line.trim();
-                if let Some(rest) = line.strip_prefix("session=") {
-                    let cmd = format!("tmux new-session -A -s {}", rest.trim());
-                    return Some(CString::new(cmd).expect("command contains NUL"));
-                } else if let Some(rest) = line.strip_prefix("command=") {
-                    let cmd = rest.trim().to_string();
-                    if !cmd.is_empty() {
+        match std::fs::read_to_string(&path) {
+            Ok(text) => {
+                for line in text.lines() {
+                    let line = line.trim();
+                    if let Some(rest) = line.strip_prefix("session=") {
+                        let cmd = format!("tmux new-session -A -s {}", rest.trim());
+                        log_str(&format!("shade config: session={} command={}", rest.trim(), cmd));
                         return Some(CString::new(cmd).expect("command contains NUL"));
+                    } else if let Some(rest) = line.strip_prefix("command=") {
+                        let cmd = rest.trim().to_string();
+                        if !cmd.is_empty() {
+                            log_str(&format!("shade config: command={}", cmd));
+                            return Some(CString::new(cmd).expect("command contains NUL"));
+                        }
                     }
                 }
+                log_str("shade config: no session/command line found");
             }
+            Err(e) => log_str(&format!("shade config: read error: {}", e)),
         }
+    } else {
+        log_str("shade config: no home dir");
     }
     None
 }
@@ -482,6 +490,10 @@ fn show() {
         let app = APP.load(Ordering::Relaxed);
         let (w, h, scale) = PENDING_SIZE;
 
+        match &*std::ptr::addr_of!(COMMAND) {
+            Some(c) => log_str(&format!("show: command={}", c.to_string_lossy())),
+            None => log_str("show: command=null"),
+        }
         let env = &*std::ptr::addr_of!(SURFACE_ENV);
         let mut sc: ghostty_surface_config_s = std::mem::zeroed();
         sc.platform_tag = GHOSTTY_PLATFORM_MACOS;
