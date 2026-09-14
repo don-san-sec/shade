@@ -18,12 +18,15 @@ cask "shade" do
     run "/usr/bin/xattr",
         args: ["-dr", "com.apple.quarantine", "{{appdir}}/Shade.app"]
 
-    # Install/preserve the raw LaunchAgent plist and restart shade. `open`
-    # crosses the install-steps seatbelt boundary through LaunchServices;
-    # invoking launchctl directly here is blocked with EIO. -n guarantees a
-    # dedicated maintenance helper even when shade is already running.
-    run "/usr/bin/open",
-        args: ["-n", "-a", "{{appdir}}/Shade.app", "--args", "--install-agent"]
+    # Install/preserve the raw LaunchAgent plist and restart shade. Invoke
+    # the new binary directly: immediately after Homebrew replaces a bundle,
+    # LaunchServices can resolve `open -a` to its stale removed executable
+    # (kLSNoExecutableErr). The helper no longer calls launchctl, so it can
+    # run inside this sandbox; explicitly allow its one home-directory write.
+    run "{{appdir}}/Shade.app/Contents/MacOS/Shade",
+        args: ["--install-agent"],
+        writable_paths: ["Library/LaunchAgents"],
+        writable_base: :home
   end
 
   # Do not delete the LaunchAgent plist here: uninstall runs during every
