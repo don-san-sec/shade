@@ -43,7 +43,9 @@ xattr -dr com.apple.quarantine /Applications/Shade.app
 
 The Homebrew cask installs and starts shade's login agent automatically, so
 there is no post-install setup. A manually installed copy registers itself as
-a login item on first launch.
+a login item on first launch. macOS may ask once for permission when a command
+first accesses Desktop, Documents, or Downloads; allow it so the terminal can
+work with files in that protected folder.
 
 ## Use it
 
