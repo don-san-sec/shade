@@ -59,6 +59,11 @@ Everything else is your normal shell and tmux.
   and never kills your shell, so the tmux session persists. To end the shell
   deliberately, use `Ctrl+D`. (shade has no menu shortcuts, so `Cmd+C` /
   `Cmd+V` / `Cmd+A` all reach the terminal.)
+- shade also dismisses itself the moment it loses focus — click another
+  app, Cmd-Tab away, or launch one from the shell (`open https://google.com`)
+  and the overlay gets out of the way instead of lingering over the screen.
+  Like `Cmd+Q`, this only hides the panel; the shell and tmux session
+  persist.
 
 Only one binding is registered, chosen by your physical layout — so on a
 British board ``Cmd+` `` stays free for macOS's window cycling. Plain `§` is

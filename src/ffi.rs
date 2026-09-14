@@ -225,6 +225,7 @@ pub struct ShadeHooks {
     pub ime: Option<unsafe extern "C" fn(*const c_char)>,
     pub view_ready: Option<unsafe extern "C" fn(f64, f64, f64)>,
     pub toggle: Option<unsafe extern "C" fn(f64)>,
+    pub focus_lost: Option<unsafe extern "C" fn()>,
     pub action: Option<unsafe extern "C" fn(*const c_void, i32, i32) -> bool>,
 }
 
@@ -232,6 +233,7 @@ extern "C" {
     pub fn shade_run(hooks: *const ShadeHooks) -> c_int;
     pub fn shade_show();
     pub fn shade_hide();
+    pub fn shade_hide_focus_lost();
     pub fn shade_visible() -> bool;
     pub fn shade_content_view() -> *mut c_void;
     pub fn shade_event_chars(event: *const c_void, mods: u64) -> *const c_char;

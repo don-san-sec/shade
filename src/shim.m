@@ -417,6 +417,21 @@ void shade_show(void) {
             NSWindowCollectionBehaviorCanJoinAllSpaces |
             NSWindowCollectionBehaviorFullScreenAuxiliary];
         [g_panel setHidesOnDeactivate:NO];
+        // Dropdown discipline: leaving a fullscreen overlay floating over the
+        // screen after it stops being the key window would be a dead panel —
+        // the terminal can no longer receive input. So when focus moves to
+        // another app (click away, Cmd-Tab, `open https://…` launching a
+        // browser), report it to Rust, which tears the surface down exactly
+        // like a toggle-hide. shade_hide_ex flips g_visible before orderOut,
+        // so its own resignKey (and the deactivate below it) never re-enters
+        // here. The observer fires only on the panel's own resignKey
+        // (object: filter), and isKeyWindow guards transient key churn.
+        [[NSNotificationCenter defaultCenter] addObserverForName:
+            NSWindowDidResignKeyNotification object:g_panel queue:nil
+            usingBlock:^(NSNotification *n) { (void)n;
+                if (!g_visible || g_panel == nil || g_panel.isKeyWindow) return;
+                if (g_hooks.focus_lost) g_hooks.focus_lost();
+            }];
         [g_panel setOpaque:YES];
         [g_panel setBackgroundColor:[NSColor blackColor]];
         [g_panel setHasShadow:NO];
@@ -446,13 +461,23 @@ void shade_show(void) {
     g_visible = YES;
 }
 
-void shade_hide(void) {
+static void shade_hide_ex(BOOL restore_prev);
+
+void shade_hide(void)          { shade_hide_ex(YES); }
+void shade_hide_focus_lost(void) { shade_hide_ex(NO); }
+
+static void shade_hide_ex(BOOL restore_prev) {
+    // Flip g_visible BEFORE orderOut: orderOut makes the panel resign key,
+    // which posts NSWindowDidResignKey synchronously, and the observer in
+    // shade_show must not read our own dismissal as a focus loss.
+    g_visible = NO;
     if (g_panel != nil) [g_panel orderOut:nil];
     g_view = nil;
-    g_visible = NO;
     [NSApp deactivate];
-    // Return focus to the app that was active before we popped up.
-    if (g_prev_app != nil) {
+    // Return focus to the app that was active before we popped up. Only
+    // for a deliberate toggle-hide: on focus loss another app already took
+    // the screen, and activating g_prev_app would steal it right back.
+    if (restore_prev && g_prev_app != nil) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
         [g_prev_app activateWithOptions:NSApplicationActivateIgnoringOtherApps];

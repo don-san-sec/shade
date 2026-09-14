@@ -35,6 +35,12 @@ typedef struct {
     // time in seconds since boot (NSEvent.timestamp / GetEventTime share
     // that epoch) — used to dedupe the two delivery paths of one press.
     void (*toggle)(double stamp);
+    // The panel lost key focus to another app (click away, Cmd-Tab,
+    // `open https://…` launching a browser). No arguments: the dismissal
+    // is the entire reaction, and unlike toggle-hide it must NOT hand
+    // focus back to the app that was front before we popped up — the app
+    // that stole our focus already owns the screen.
+    void (*focus_lost)(void);
     // Simplified libghostty action callback: (app, tag, child_exit_code).
     bool (*action)(const void *app, int32_t tag, int32_t exit_code);
 } ShadeHooks;
@@ -47,6 +53,9 @@ int  shade_run(const ShadeHooks *hooks);
 // then obtained via shade_content_view().
 void shade_show(void);
 void shade_hide(void);
+// Dismiss without re-activating the previously-frontmost app — for the
+// focus-lost path, where another app has already taken the screen.
+void shade_hide_focus_lost(void);
 bool shade_visible(void);
 void *shade_content_view(void);
 double shade_top_inset(void);

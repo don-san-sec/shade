@@ -477,6 +477,18 @@ extern "C" fn toggle_hook(stamp: f64) {
     }
 }
 
+// Focus loss (click on another app, Cmd-Tab, `open https://…` launching a
+// browser): dismiss like a toggle-hide, but never re-activate the app that
+// was frontmost before we popped up — whatever stole our focus already owns
+// the screen now. Guarded so a hide already in flight (which flips the shim's
+// g_visible before orderOut, firing resignKey) is a no-op here.
+extern "C" fn focus_lost_hook() {
+    if HIDDEN.load(Ordering::Relaxed) {
+        return;
+    }
+    hide_ex(false);
+}
+
 // ------------------------------------------------------------------ toggle
 
 fn show() {
@@ -525,9 +537,27 @@ fn show() {
 }
 
 fn hide() {
+    hide_ex(true)
+}
+
+// `restore_prev_app`: a deliberate toggle hands focus back to the app that
+// was front before shade popped up; a focus-loss dismissal must not, since
+// another app has already claimed the screen.
+fn hide_ex(restore_prev_app: bool) {
+    // Mirrors the "show:" log — the hide path is otherwise silent, which
+    // makes "why did shade disappear" undebuggable.
+    log_str(if restore_prev_app {
+        "hide: toggle"
+    } else {
+        "hide: focus lost"
+    });
     let surface = SURFACE.swap(ptr::null_mut(), Ordering::Relaxed);
     unsafe {
-        shade_hide();
+        if restore_prev_app {
+            shade_hide();
+        } else {
+            shade_hide_focus_lost();
+        }
         if !surface.is_null() {
             ghostty_surface_free(surface);
         }
@@ -632,6 +662,7 @@ fn main() {
             ime: Some(ime_hook),
             view_ready: Some(view_ready_hook),
             toggle: Some(toggle_hook),
+            focus_lost: Some(focus_lost_hook),
             action: Some(action_cb),
         };
         shade_run(&hooks);
