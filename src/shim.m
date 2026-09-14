@@ -15,6 +15,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <libproc.h>
+#include <signal.h>
+#include <spawn.h>
+#include <unistd.h>
 
 #include "shade.h"
 #include <ghostty.h>
@@ -309,6 +313,100 @@ void shade_unregister_agent(void) {
         dispatch_semaphore_signal(done);
     }];
     dispatch_semaphore_wait(done, dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC));
+}
+
+// ------------------------------------------------------------------ agent
+
+// `shade --install-agent`: install the raw LaunchAgent plist and restart
+// shade, then exit. On upgrade an already-loaded launchd job takes over; on
+// first install an ordinary instance runs until the plist loads at next login.
+// Used by the Homebrew cask's postflight, launched via `open` because open
+// reaches LaunchServices outside Homebrew's install-steps sandbox.
+// SMAppService/BTM registration exists for first-launch (shade_register_agent)
+// but BTM launches are launch-constraint-killed for ad-hoc signed apps on
+// macOS 27 beta - the raw agent is the reliable path, same as `make install`.
+
+// Find every other process running this executable. With `terminate`, kill
+// them so the loaded raw LaunchAgent's KeepAlive restarts exactly one copy
+// from the newly-installed app. Never touches the maintenance helper itself.
+static bool other_instances(bool terminate) {
+    pid_t me = getpid();
+    char own[PROC_PIDPATHINFO_MAXSIZE];
+    if (proc_pidpath(me, own, sizeof(own)) <= 0) return false;
+    int count = proc_listallpids(NULL, 0);
+    if (count <= 0) return false;
+    pid_t *pids = malloc((size_t)count * sizeof(pid_t));
+    if (pids == NULL) return false;
+    bool found = false;
+    int listed = proc_listallpids(pids, count * (int)sizeof(pid_t));
+    if (listed > 0) {
+        for (int i = 0; i < listed; i++) {
+            pid_t p = pids[i];
+            if (p <= 0 || p == me) continue;
+            char path[PROC_PIDPATHINFO_MAXSIZE];
+            if (proc_pidpath(p, path, sizeof(path)) > 0 && strcmp(path, own) == 0) {
+                found = true;
+                if (terminate) kill(p, SIGTERM);
+            }
+        }
+    }
+    free(pids);
+    return found;
+}
+
+void shade_install_agent(void) {
+    NSString *exe = [[NSBundle mainBundle] executablePath];
+    if (exe == nil) { qlog("install-agent: no executable path"); return; }
+    NSString *dir = [NSHomeDirectory()
+        stringByAppendingPathComponent:@"Library/LaunchAgents"];
+    [[NSFileManager defaultManager] createDirectoryAtPath:dir
+        withIntermediateDirectories:YES attributes:nil error:NULL];
+    // Same shape as assets/dev.shade.agent.plist after `make install`'s sed.
+    NSString *plist = [dir stringByAppendingPathComponent:@"dev.shade.agent.plist"];
+    NSString *body = [NSString stringWithFormat:
+        @"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" "
+        "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
+        "<plist version=\"1.0\">\n"
+        "<dict>\n"
+        "\t<key>Label</key>\n"
+        "\t<string>dev.shade.app</string>\n"
+        "\t<key>ProgramArguments</key>\n"
+        "\t<array>\n"
+        "\t\t<string>%@</string>\n"
+        "\t</array>\n"
+        "\t<key>RunAtLoad</key>\n"
+        "\t<true/>\n"
+        "\t<key>KeepAlive</key>\n"
+        "\t<true/>\n"
+        "</dict>\n"
+        "</plist>\n", exe];
+    if (![body writeToFile:plist atomically:YES encoding:NSUTF8StringEncoding error:NULL]) {
+        qlog("install-agent: plist write failed");
+        return;
+    }
+    // Kill the old agent process and any GUI-launched strays. If launchd
+    // already owns the job (the upgrade case), KeepAlive restarts the new
+    // executable after its normal throttle interval. launchctl cannot be
+    // called here: app-launched helpers are denied its Mach IPC with EIO.
+    other_instances(true);
+    // launchd's default throttle interval is about 10 seconds. Wait past it
+    // before deciding there is no loaded job, or we could start an ordinary
+    // copy just before KeepAlive starts a second, supervised one.
+    sleep(12);
+
+    // Fresh install: no launchd job exists yet, so nothing respawns. Start
+    // one ordinary instance now; the raw plist takes over at the next login.
+    // This child survives our immediate exit and keeps the hotkey available.
+    if (!other_instances(false)) {
+        pid_t child;
+        char *const argv[] = {(char *)exe.fileSystemRepresentation,
+                              "--run-unsupervised", NULL};
+        extern char **environ;
+        if (posix_spawn(&child, argv[0], NULL, NULL, argv, environ) != 0)
+            qlog("install-agent: failed to start shade");
+    }
+    qlog("install-agent: plist installed; shade restarted");
 }
 
 int shade_run(const ShadeHooks *hooks) {

@@ -569,15 +569,27 @@ fn hide_ex(restore_prev_app: bool) {
 
 fn main() {
     unsafe {
-        // `shade --unregister-agent`: remove the login item and exit.
-        if std::env::args().any(|a| a == "--unregister-agent") {
+        let args: Vec<String> = std::env::args().collect();
+        // Maintenance modes used by installation tooling. They run before
+        // libghostty/AppKit startup and exit as soon as the agent operation
+        // is complete.
+        if args.iter().any(|a| a == "--unregister-agent") {
             shade_unregister_agent();
             return;
         }
+        if args.iter().any(|a| a == "--install-agent") {
+            shade_install_agent();
+            return;
+        }
 
-        // First launch from an installed location: register the login item so
-        // the toggle shortcut works after reboot. No-op for dev runs.
-        maybe_register_login_item();
+        // The fresh-cask fallback already wrote the raw LaunchAgent plist;
+        // skip the separate BTM/SMAppService registration for that temporary
+        // first-session instance. At next login launchd owns it normally.
+        if !args.iter().any(|a| a == "--run-unsupervised") {
+            // First launch from an installed location: register the login item
+            // so the toggle shortcut works after reboot. No-op for dev runs.
+            maybe_register_login_item();
+        }
 
         COMMAND = load_command();
         RESOURCES = find_resources();

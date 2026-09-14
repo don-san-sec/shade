@@ -41,8 +41,9 @@ handles this for you; a manual install needs one command:
 xattr -dr com.apple.quarantine /Applications/Shade.app
 ```
 
-**First launch** registers shade as a login item (so the toggle shortcut works
-after reboot) — just open it once. No other setup.
+The Homebrew cask installs and starts shade's login agent automatically, so
+there is no post-install setup. A manually installed copy registers itself as
+a login item on first launch.
 
 ## Use it
 

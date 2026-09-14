@@ -242,6 +242,7 @@ extern "C" {
     pub fn shade_beep();
     pub fn shade_logstr(msg: *const c_char);
     pub fn shade_unregister_agent();
+    pub fn shade_install_agent();
     pub fn shade_top_inset() -> f64;
 
     // Only its address is used; libghostty calls it with clang's ABI for

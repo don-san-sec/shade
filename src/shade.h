@@ -70,7 +70,12 @@ char *shade_pb_read(void);   // caller frees
 void  shade_pb_write(const char *utf8);
 void  shade_beep(void);
 void  shade_logstr(const char *msg);
-void  shade_register_agent(void);
-void  shade_unregister_agent(void);
+void shade_register_agent(void);
+void shade_unregister_agent(void);
+// `shade --install-agent`: write ~/Library/LaunchAgents/dev.shade.agent.plist
+// pointing at this executable, restart it under launchd, kill stray
+// instances, and (the caller then) exits. Idempotent maintenance path used
+// by the Homebrew cask postflight (via `open`) and safe to run any time.
+void shade_install_agent(void);
 
 #endif
